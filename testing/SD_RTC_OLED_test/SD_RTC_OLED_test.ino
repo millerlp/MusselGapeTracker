@@ -6,6 +6,9 @@
  *  along with checking functionality of the Real Time Clock and
  *  SD card. 
  *  
+ *  Status may be monitored over the Serial port (at 57600 baud) if
+ *  the OLED screen isn't available on the board. 
+ *  
  */
 
 #include "SdFat.h" // https://github.com/greiman/SdFat
