@@ -95,6 +95,7 @@ void setup() {
     oled1.println();
     oled1.println(F("Continue?"));
     oled1.println(F("Press 1"));
+    Serial.println(F("Clock error, press BUTTON1 on board to continue"));
 
     rtcErrorFlag = true;
     // Consider removing this while loop and allowing user to plow
@@ -121,6 +122,8 @@ void setup() {
     oled1.clear();
     oled1.set2X();
     oled1.println(F("RTC OKAY"));
+    Serial.println(F("Clock okay"));
+    Serial.println(buf);
   } // end of if ( (newtime.year() < 2017) | (newtime.year() > 2035) ) {
 
   //*************************************************************
@@ -134,13 +137,14 @@ void setup() {
   // If the above statement returns FALSE after trying to 
   // initialize the card, enter into this section and
   // hold in an infinite loop.
-        // There is an error with the SD card, halt everything
+    // There is an error with the SD card, halt everything
     oled1.home();
     oled1.clear();
     oled1.println(F("SD ERROR"));
     oled1.println();
     oled1.println(F("Continue?"));
     oled1.println(F("Press 1"));
+    Serial.println(F("SD error, press BUTTON1 on board to continue"));
 
     sdErrorFlag = true;
     stallFlag = true; // set true when there is an error
@@ -164,6 +168,7 @@ void setup() {
     }
   }  else {
     oled1.println(F("SD OKAY"));
+    Serial.println(F("SD OKAY"));
   }  // end of (!sd.begin(chipSelect, SPI_FULL_SPEED))
 
   // Give accounting of bootup successes and failures
@@ -171,19 +176,26 @@ void setup() {
   oled1.clear();
   oled1.set2X();
   oled1.print(F("RTC "));
+  Serial.print(F("RTC "));
   if (rtcErrorFlag){
     oled1.println(F("ERROR"));
+    Serial.println(F("ERROR"));
   } else {
     oled1.println(F("OKAY"));
+    Serial.println(F("OKAY"));
   }
   oled1.print(F("SD "));
+  Serial.print(F("SD "));
   if (sdErrorFlag){
     oled1.println(F("ERROR"));
+    Serial.println(F("ERROR"));
   } else {
     oled1.println(F("OKAY"));
+    Serial.println(F("OKAY"));
   }
   oled1.println(F("Finished"));
   oled1.println(F("boot"));
+  Serial.println(F("Finished boot"));
 }
 
 void loop() {
