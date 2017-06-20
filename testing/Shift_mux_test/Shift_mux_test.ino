@@ -50,7 +50,7 @@ DateTime newtime;
 char buf[20]; // declare a string buffer to hold the time result
 
 unsigned long oldMillis;
-unsigned int loopInterval = 1000;
+unsigned int loopInterval = 500;
 byte HallChannel = 0;
 unsigned int shiftChannel = 0;
 
@@ -160,10 +160,8 @@ void setup() {
   
   delay(3000);
   oled1.clear();
-  oldMillis = millis();
-      oled1.setCursor(0,0);
-    oled1.clearToEOL();
-    oled1.print(oldMillis);
+  oled1.setScroll(true);
+
 
 }
 
@@ -173,7 +171,7 @@ void loop() {
   if ( (millis() - oldMillis) > loopInterval){
     oldMillis = millis(); // update oldMillis
 
-    if (HallChannel > 1){
+    if (HallChannel > 15){
       HallChannel = 0; // Reset to 0
     }
     //-------------------------------------------
@@ -192,17 +190,11 @@ void loop() {
     // Do a 2-bit right shift to divide rawAnalog
     // by 4 to get the average of the 4 readings
     rawAnalog = rawAnalog >> 2;    
-    oled1.setCursor(0,0);
-    oled1.clearToEOL();
-    oled1.print(oldMillis);
-    oled1.setCursor(0,4);
-    oled1.clearToEOL();
-    oled1.println(HallChannel);
-    oled1.clearToEOL();
+
     oled1.print(F("Ch"));
     oled1.print(HallChannel);
     oled1.print(F(": "));
-    oled1.print(rawAnalog);
+    oled1.println(rawAnalog);
 
     
     HallChannel++; // increment for next loop
@@ -218,7 +210,7 @@ void muxChannelSet (byte channel) {
   digitalWrite (MUX_S3, (channel & 8) ? HIGH : LOW);  // high-order bit
 }  // end of muxChannelSet
 
-void shiftChannelSet (byte channel) {
+word shiftChannelSet (byte channel) {
     // Send a signal to the appropriate shift register
     // channel to go high (set 1) to wake that hall sensor
     digitalWrite(CS_SHIFT_REG, LOW);
@@ -228,8 +220,12 @@ void shiftChannelSet (byte channel) {
     // appropriate number of bits. To turn on Hall 0, you 
     // need a 1 in bit 0, to turn on Hall 15, you need
     // a 1 in bit 15 position.
-    byte hexChannel = 0x01 << channel;
-    SPI.transfer(hexChannel); // activate 1st hall effect sensor
-    digitalWrite(CS_SHIFT_REG, HIGH);  
-}
+    word hexChannel = 0x01 << channel;
+    // Now split into lowByte and highByte and send them both
+    // in order
+    SPI.transfer(highByte(hexChannel)); // 
+    SPI.transfer(lowByte(hexChannel)); // 
+    digitalWrite(CS_SHIFT_REG, HIGH); 
+    return hexChannel; 
+} // end of shiftChannelSet
 
