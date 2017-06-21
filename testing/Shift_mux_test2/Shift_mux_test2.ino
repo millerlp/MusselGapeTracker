@@ -1,5 +1,5 @@
 /*
- * Shift_mux_test.ino
+ * Shift_mux_test2.ino
  * 
  * Basic test sketch for interfacing with the 
  * SN74HC595D shift registers and 
