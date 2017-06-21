@@ -1,0 +1,765 @@
+/*
+ * Logger_test.ino
+ * 
+ * Testing datalogging capabilities
+ * 
+ * #TODO: Implement calibration mode to show output from a single channel
+ * 
+ */
+
+#include "SdFat.h" // https://github.com/greiman/SdFat
+#include <Wire.h>  // built in library, for I2C communications
+#include "SSD1306Ascii.h" // https://github.com/greiman/SSD1306Ascii
+#include "SSD1306AsciiWire.h" // https://github.com/greiman/SSD1306Ascii
+#include <SPI.h>  // built in library, for SPI communications
+#include "RTClib.h" // https://github.com/millerlp/RTClib
+#include <EEPROM.h> // built in library, for reading the serial number stored in EEPROM
+#include "MusselGapeTrackerlib.h" // https://github.com/millerlp/MusselGapeTrackerlib
+
+#define SPS 2 // Samples per second (1 or 2)
+
+// ***** TYPE DEFINITIONS *****
+typedef enum STATE
+{
+  STATE_DATA, // collecting data normally
+  STATE_ENTER_CALIB, // user wants to calibrate
+//  STATE_CALIB1, // user chooses to calibrate accel 1
+//  STATE_CALIB2, // user chooses to calibrate accel 2
+  STATE_CALIB_WAIT, // waiting for user to signal mussel is positioned
+  STATE_CALIB_ACTIVE, // taking calibration data, button press ends this
+  STATE_CLOSE_FILE, // close data file, start new file
+} mainState_t;
+
+typedef enum DEBOUNCE_STATE
+{
+  DEBOUNCE_STATE_IDLE,
+  DEBOUNCE_STATE_CHECK,
+  DEBOUNCE_STATE_TIME
+} debounceState_t;
+
+// main state machine variable, this takes on the various
+// values defined for the STATE typedef above. 
+mainState_t mainState;
+
+// debounce state machine variable, this takes on the various
+// values defined for the DEBOUNCE_STATE typedef above.
+volatile debounceState_t debounceState;
+
+#define REDLED 4    // Red error LED pin
+#define GRNLED A3   // Green LED pin
+#define BUTTON1 2     // BUTTON1 on INT0, pin PD2
+#define BUTTON2 3     // BUTTON2 on INT1, pin PD3
+#define CS_SD 10    // Chip select for SD card (if used)
+#define CS_SHIFT_REG A2 // Chip select for shift registers
+#define SHIFT_CLEAR A1  // Clear (erase) line for shift registers
+#define ANALOG_IN A0  // Hall effect analog input from multiplexer
+
+#define MUX_S0  9   // Multiplexer channel select line
+#define MUX_S1  5   // Multiplexer channel select line
+#define MUX_S2  6   // Multiplexer channel select line
+#define MUX_S3  7   // Multiplexer channel select line
+#define MUX_EN  8   // Multiplexer enable line
+
+
+unsigned int hallAverages[16]; // array to hold each second's sample averages
+unsigned int prevAverages[16]; // array to hold previous second's sample averages
+
+//******************************************
+// 0X3C+SA0 - 0x3C or 0x3D for OLED screen on I2C bus
+#define I2C_ADDRESS1 0x3C   // Typical default address
+//#define I2C_ADDRESS2 0x3D // Alternate address, after moving resistor on OLED
+
+SSD1306AsciiWire oled1; // create OLED display object, using I2C Wire
+
+//*************
+// Create sd card objects
+SdFat sd;
+SdFile logfile;  // for sd card, this is the file object to be written to
+// Declare initial name for output files written to SD card
+char filename[] = "YYYYMMDD_HHMM_00_SN00.csv";
+// Placeholder serialNumber
+char serialNumber[] = "SN00";
+//************ Flags
+bool sdErrorFlag = false;   // Flag to store SD card initialization error
+bool rtcErrorFlag = false;  // Flag to store real time clock error
+bool saveData = false;  // Flag to mark that saving to SD is possible
+volatile bool buttonFlag = false; // Flag to mark when button was pressed
+bool takeSamples = false;   // Flag to mark that samples should be taken on this loop
+bool writeData = false; // Flag to mark when to write to SD card
+bool serialValid = false; // flag to show whether the serialNumber value is real or just zeros
+//*************
+// Create real time clock object
+RTC_DS3231 rtc;
+char buf[20]; // declare a string buffer to hold the time result
+//**************** Time variables
+DateTime newtime;
+DateTime oldtime; // used to track time in main loop
+byte oldday;     // used to keep track of midnight transition
+DateTime buttonTime; // hold the time since the button was pressed
+DateTime chooseTime; // hold the time stamp when a waiting period starts
+DateTime calibEnterTime; // hold the time stamp when calibration mode is entered
+volatile unsigned long buttonTime1; // hold the initial button press millis() value
+byte debounceTime = 20; // milliseconds to wait for debounce
+byte mediumPressTime = 2; // seconds to hold button1 to register a medium press
+byte longPressTime = 5; // seconds to hold button1 to register a long press
+byte pressCount = 0; // counter for number of button presses
+unsigned long prevMillis;  // counter for faster operations
+unsigned long newMillis;  // counter for faster operations
+
+
+byte loopCount = 0;
+//******************
+// Create ShiftReg and Mux objects
+ShiftReg shiftReg;
+Mux mux;
+
+
+//********************************************************
+void setup() {
+  // Set BUTTON1 as an input
+  pinMode(BUTTON1, INPUT_PULLUP);
+  // Set button1 as an input
+  pinMode(BUTTON1, INPUT_PULLUP);
+  // Set up the LEDs as output
+  pinMode(REDLED,OUTPUT);
+  digitalWrite(REDLED, LOW);
+  pinMode(GRNLED,OUTPUT);
+  digitalWrite(GRNLED, LOW);
+  Serial.begin(57600);
+  Serial.println(F("Hello"));  
+  // Initialize the shift register object
+  shiftReg.begin(CS_SHIFT_REG, SHIFT_CLEAR);
+  // Initialize the multiplexer object
+  mux.begin(MUX_EN,MUX_S0,MUX_S1,MUX_S2,MUX_S3);
+  // Grab the serial number from the EEPROM memory
+  // The character array serialNumber was defined in the preamble
+  EEPROM.get(0, serialNumber);
+  if (serialNumber[0] == 'S') {
+    serialValid = true; // set flag   
+  }
+
+  
+  //----------------------------------
+  // Start up the oled displays
+  oled1.begin(&Adafruit128x64, I2C_ADDRESS1);
+  oled1.set400kHz();  
+  oled1.setFont(Adafruit5x7);    
+  oled1.clear(); 
+  // Initialize the real time clock DS3231M
+  Wire.begin(); // Start the I2C library with default options
+  rtc.begin();  // Start the rtc object with default options
+  newtime = rtc.now(); // read a time from the real time clock
+  newtime.toString(buf, 20); 
+  // Now extract the time by making another character pointer that
+  // is advanced 10 places into buf to skip over the date. 
+  char *timebuf = buf + 10;
+  oled1.println();
+  oled1.set2X();
+  for (int i = 0; i<11; i++){
+    oled1.print(buf[i]);
+  }
+  oled1.println();
+  oled1.println(timebuf);
+  for (byte i = 0; i<4; i++){
+    oled1.print(serialNumber[i]);
+  }
+  
+  Serial.println(buf); // echo to serial port
+  // Check if serial number from EEPROM was valid
+  if (serialNumber[0] == 'S') {
+    serialValid = true; // set flag
+    Serial.print(F("Read serial number: "));
+    Serial.println(serialNumber);
+  } else {
+    Serial.print(F("No valid serial number: "));
+    serialValid = false;
+  }
+
+    delay(1000);
+
+  //***********************************************
+  // Check that real time clock has a reasonable time value
+  bool stallFlag = true; // Used in error handling below
+  if ( (newtime.year() < 2017) | (newtime.year() > 2035) ) {
+    // There is an error with the clock, halt everything
+    oled1.home();
+    oled1.clear();
+    oled1.set1X();
+    oled1.println(F("RTC ERROR"));
+    oled1.println(buf);
+    oled1.set2X();
+    oled1.println();
+    oled1.println(F("Continue?"));
+    oled1.println(F("Press 1"));
+    Serial.println(F("Clock error, press BUTTON1 on board to continue"));
+
+    rtcErrorFlag = true;
+    // Consider removing this while loop and allowing user to plow
+    // ahead without rtc (use button input?)
+    while(stallFlag){
+    // Flash the error led to notify the user
+    // This permanently halts execution, no data will be collected
+      digitalWrite(REDLED, !digitalRead(REDLED));
+      delay(100);
+      if (digitalRead(BUTTON1) == LOW){
+        delay(40);  // debounce pause
+        if (digitalRead(BUTTON1) == LOW){
+          // If button is still low 40ms later, this is a real press
+          // Now wait for button to go high again
+          while(digitalRead(BUTTON1) == LOW) {;} // do nothing
+          stallFlag = false; // break out of while(stallFlag) loop
+          oled1.home();
+          oled1.clear();
+        } 
+      }              
+    } // end of while(stallFlag)
+  } else {
+    oled1.home();
+    oled1.clear();
+    oled1.set2X();
+    oled1.println(F("RTC OKAY"));
+    Serial.println(F("Clock okay"));
+    Serial.println(buf);
+  } // end of if ( (newtime.year() < 2017) | (newtime.year() > 2035) ) {
+
+
+ //*************************************************************
+  // SD card setup and read (assumes Serial output is functional already)
+
+  pinMode(CS_SD, OUTPUT);  // set chip select pin for SD card to output
+  // Initialize the SD card object
+  // Try SPI_FULL_SPEED, or SPI_HALF_SPEED if full speed produces
+  // errors on a breadboard setup. 
+  if (!sd.begin(CS_SD, SPI_FULL_SPEED)) {
+  // If the above statement returns FALSE after trying to 
+  // initialize the card, enter into this section and
+  // hold in an infinite loop.
+    // There is an error with the SD card, halt everything
+    oled1.home();
+    oled1.clear();
+    oled1.println(F("SD ERROR"));
+    oled1.println();
+    oled1.println(F("Continue?"));
+    oled1.println(F("Press 1"));
+    Serial.println(F("SD error, press BUTTON1 on board to continue"));
+
+    sdErrorFlag = true;
+    bool stallFlag = true; // set true when there is an error
+    while(stallFlag){ // loop due to SD card initialization error
+      digitalWrite(REDLED, HIGH);
+      delay(100);
+      digitalWrite(REDLED, LOW);
+      digitalWrite(GRNLED, HIGH);
+      delay(100);
+      digitalWrite(GRNLED, LOW);
+
+      if (digitalRead(BUTTON1) == LOW){
+        delay(40);  // debounce pause
+        if (digitalRead(BUTTON1) == LOW){
+          // If button is still low 40ms later, this is a real press
+          // Now wait for button to go high again
+          while(digitalRead(BUTTON1) == LOW) {;} // do nothing
+          stallFlag = false; // break out of while(stallFlag) loop
+        } 
+      }              
+    }
+  }  else {
+    oled1.println(F("SD OKAY"));
+    Serial.println(F("SD OKAY"));
+  }  // end of (!sd.begin(chipSelect, SPI_FULL_SPEED))
+  delay(1000);
+  // If the clock and sd card are both working, we can save data
+  if (!sdErrorFlag && !rtcErrorFlag){ 
+    saveData = true;
+  } else {
+    saveData = false;
+  }
+
+  if (saveData){
+    // If both error flags were false, continue with file generation
+    newtime = rtc.now(); // grab the current time
+    initFileName(sd, logfile, newtime, filename, serialValid, serialNumber); // generate a file name
+    oled1.home();
+    oled1.clear();
+    oled1.set1X();
+    oled1.clearToEOL();
+    oled1.println(F("Writing to: "));
+    oled1.println(filename);
+    delay(1000);
+  } else {
+    // if saveData is false
+    // If saveData if false
+    oled1.home();
+    oled1.clear();
+    oled1.set2X();
+    oled1.println(F("Data will"));
+    oled1.println(F("not be"));
+    oled1.println(F("saved!"));   
+  }
+  // Start 32.768kHz clock signal on TIMER2. 
+  // Supply the current time value as the argument, returns 
+  // an updated time
+  newtime = startTIMER2(rtc.now(), rtc, SPS);
+
+  // Cycle briefly until we reach 9 sec, so that the
+  // data collection loop will start on a nice even 0 sec
+  // time stamp. 
+  while (!( (newtime.second() % 10) == 0)){
+    delay(50);
+    newtime = rtc.now();
+  }
+  attachInterrupt(0, buttonFunc, LOW);  // BUTTON1 interrupt
+  oldtime = newtime; // store the current time value
+  oldday = oldtime.day(); // store the current day value
+  mainState = STATE_DATA; // Start the main loop in data-taking state
+}
+
+//*****************************************************
+void loop() {
+  // Always start the loop by checking the time
+  newtime = rtc.now(); // Grab the current time
+  //-------------------------------------------------------------
+  // Begin loop by checking the debounceState to 
+  // handle any button presses
+  switch (debounceState) {
+    // debounceState should normally start off as 
+    // DEBOUNCE_STATE_IDLE until button1 is pressed,
+    // which causes the state to be set to 
+    // DEBOUNCE_STATE_CHECK
+    //************************************
+    case DEBOUNCE_STATE_IDLE:
+      // Do nothing in this case
+    break;
+    //************************************
+    case DEBOUNCE_STATE_CHECK:
+      // If the debounce state has been set to 
+      // DEBOUNCE_STATE_CHECK by the buttonFunc interrupt,
+      // check if the button is still pressed
+      if (digitalRead(BUTTON1) == LOW) {
+        if (millis() > buttonTime1 + debounceTime) {
+          // If the button has been held long enough to 
+          // be a legit button press, switch to 
+          // DEBOUNCE_STATE_TIME to keep track of how long 
+          // the button is held
+          debounceState = DEBOUNCE_STATE_TIME;
+          buttonTime = rtc.now();
+        } else {
+          // If button is still pressed, but the debounce 
+          // time hasn't elapsed, remain in this state
+          debounceState = DEBOUNCE_STATE_CHECK;
+        }
+      } else {
+        // If button1 is high again when we hit this
+        // case in DEBOUNCE_STATE_CHECK, it was a false trigger
+        // Reset the debounceState
+        debounceState = DEBOUNCE_STATE_IDLE;
+        buttonFlag = false;
+        // Restart the button1 interrupt
+        attachInterrupt(0, buttonFunc, LOW);
+      }
+    break; // end of case DEBOUNCE_STATE_CHECK
+    //*************************************
+    case DEBOUNCE_STATE_TIME:
+      if (digitalRead(BUTTON1) == HIGH) {
+        // If the user released the button, now check how
+        // long the button was depressed. This will determine
+        // which state the user wants to enter. 
+
+        DateTime checkTime = rtc.now(); // get the time
+        
+        if (checkTime.unixtime() < (buttonTime.unixtime() + mediumPressTime)) {
+          Serial.println(F("Short press registered"));
+          // User held button briefly, treat as a normal
+          // button press, which will be handled differently
+          // depending on which mainState the program is in.
+          buttonFlag = true;
+          
+        } else if (checkTime.unixtime() > (buttonTime.unixtime() + mediumPressTime) &
+          checkTime.unixtime() < (buttonTime.unixtime() + longPressTime)) {
+          // User held button1 long enough to enter calibration
+          // mode, but not long enough to enter close file mode
+          // First close the current logfile
+          logfile.close(); // Make sure the data file is closed and saved.
+          // Set state to STATE_ENTER_CALIB
+          mainState = STATE_ENTER_CALIB;
+          // Update OLEDs to prompt user
+          oled1.home();
+          oled1.clear();
+          oled1.println(F("Press"));
+          oled1.println(F("BUTTON 1"));
+          oled1.println(F("to choose"));
+          oled1.println(F("Channel"));
+          
+          // Flash both LEDs 5 times to let user know we've entered
+          // calibration mode
+          for (byte i = 0; i < 5; i++){
+            digitalWrite(REDLED, HIGH);
+            digitalWrite(GRNLED, HIGH);
+            delay(100);
+            digitalWrite(REDLED, LOW);
+            digitalWrite(GRNLED, LOW);
+            delay(100);
+          }
+          // Set pressCount to 16 to start
+          pressCount = 16;
+          // Start a timer for entering Calib mode, to be used to give
+          // the user time to enter 1 button press or 2 to choose 
+          // which unit to calibrate
+          chooseTime = rtc.now();
+  
+        } else if (checkTime.unixtime() > (buttonTime.unixtime() + longPressTime)){
+          // User held button1 long enough to enter close file mode
+          mainState = STATE_CLOSE_FILE;
+        }
+        
+        // Now that the button press has been handled, return
+        // to DEBOUNCE_STATE_IDLE and await the next button press
+        debounceState = DEBOUNCE_STATE_IDLE;
+        // Restart the button1 interrupt now that the button
+        // has been released
+        attachInterrupt(0, buttonFunc, LOW);
+      } else {
+        // If button is still low (depressed), remain in 
+        // this DEBOUNCE_STATE_TIME
+        debounceState = DEBOUNCE_STATE_TIME;
+      }
+      
+    break; // end of case DEBOUNCE_STATE_TIME 
+  } // end switch(debounceState)
+  
+//----------------------------------------------------------
+//----------------------------------------------------------
+  switch (mainState) {
+    //*****************************************************
+    case STATE_DATA:
+    
+      // Check to see if the current seconds value
+      // is equal to oldtime.second(). If so, we
+      // are still in the same second. If not,
+      // the fracSec value should be reset to 0
+      // and oldtime updated to equal newtime.
+      if (oldtime.second() != newtime.second()) {
+        oldtime = newtime; // update oldtime
+        loopCount = 0; // reset loopCount
+        takeSamples = true; // set flag to take samples 
+        if (saveData){
+          writeData = true; // set flag to write samples to SD card     
+        }
+      }
+
+      if (takeSamples){
+          // A new second has turned over, take a set of samples from 
+          // the 16 hall effect sensors
+          for (byte ch = 0; ch < 16; ch++){
+              // Cycle through each channel
+              //-------------------------------------------
+              // Call function to set shift register bit to wake
+              // appropriate sensor
+              shiftReg.shiftChannelSet(ch); 
+              //----------------------------------------------
+              mux.muxChannelSet(ch); // Call function to set address bits             
+              //----------------------------------------------
+              // Take 4 analog readings from the same channel and average them
+              unsigned int rawAnalog = 0;
+              analogRead(ANALOG_IN); // throw away 1st reading
+              for (byte i = 0; i<4; i++){
+                  rawAnalog = rawAnalog + analogRead(ANALOG_IN);
+                  delay(2);
+              }
+              // Do a 2-bit right shift to divide rawAnalog
+              // by 4 to get the average of the 4 readings
+              hallAverages[ch] = rawAnalog >> 2;           
+          }
+          // Put all hall sensors to sleep
+          shiftReg.clear();
+      }
+
+
+      // Now if loopCount is equal to the value in SAMPLES_PER_SECOND
+      // (minus 1 for zero-based counting), then write out the contents
+      // of the sample data arrays to the SD card. This should write data
+      // once every second.
+      if (loopCount == (SPS - 1)) {
+        if (saveData && writeData){
+          // If saveData is true, and it's time to writeData, then do this:
+          // Check to see if a new day has started. If so, open a new file
+          // with the initFileName() function
+          if (oldtime.day() != oldday) {
+            // Close existing file
+            logfile.close();
+            // Generate a new output filename based on the new date
+            initFileName(sd, logfile, oldtime, filename, serialValid, serialNumber); // generate a file name
+            // Update oldday value to match the new day
+            oldday = oldtime.day();
+          }
+          
+          // Call the writeToSD function to output the data array contents
+          // to the SD card
+          writeToSD(newtime);
+          writeData = false; // reset flag          
+        }       
+//        printTimeSerial(oldtime);
+        oled1.home();
+        oled1.clear();
+        oled1.set2X();
+        for (byte r = 0; r < 4; r++){
+          oled1.print(F("Ch"));
+          oled1.print(r);
+          oled1.print(F(": "));
+          oled1.println(hallAverages[r]);
+        }
+        
+    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
+                        
+                        
+      // Increment loopCount after writing all the sample data to
+      // the arrays
+      loopCount++; 
+      digitalWrite(GRNLED, HIGH);
+      delay(5);
+      digitalWrite(GRNLED, LOW);
+      goToSleep(); // function in MusselGapeTrackerlib.h  
+      // After waking, this case should end and the main loop
+      // should start again. 
+      mainState = STATE_DATA;
+    break; // end of case STATE_DATA  
+    
+    //*****************************************************
+    case STATE_CLOSE_FILE:
+      // If user held button 1 down for at least 6 seconds, they want 
+      // to close the current data file and open a new one. 
+      logfile.close(); // Make sure the data file is closed and saved.
+      oled1.home();
+      oled1.clear();
+      oled1.set2X();
+      oled1.println(F("File"));
+      oled1.println(F("Closed"));
+      oled1.set1X();
+      oled1.println(filename);      
+      // Briefly flash the green led to show that program 
+      // has closed the data file and started a new one. 
+      for (byte i = 0; i < 15; i++){
+        digitalWrite(GRNLED, HIGH);
+        delay(100);
+        digitalWrite(GRNLED, LOW);
+        delay(100);
+      }
+      // Open a new output file
+      initFileName(sd, logfile, rtc.now(), filename, serialValid, serialNumber ); 
+      Serial.print(F("Writing to "));
+      printTimeSerial(newtime);
+      Serial.println(); 
+      mainState = STATE_DATA; // Return to normal data collection
+    break; // end of case STATE_FILE_CLOSE    
+    //*****************************************************
+    case STATE_ENTER_CALIB:
+      // We have arrived at this state because the user held button1 down
+      // for the specified amount of time (see the debounce cases earlier)
+      // so we now allow the user to enter additional button presses to 
+      // choose which accelerometer they want to calibrate. 
+      
+      // Read a time value
+      calibEnterTime = rtc.now();
+  
+      if (calibEnterTime.unixtime() < (chooseTime.unixtime() + longPressTime)){
+        // If longPressTime has not elapsed, add any new button presses to the
+        // the pressCount value
+        if (buttonFlag) {
+          pressCount++;
+          // If the user pressed the button, reset chooseTime to
+          // give them extra time to press the button again. 
+          chooseTime = calibEnterTime;
+          buttonFlag = false; // reset buttonFlag
+          if (pressCount == 16){
+              oled1.home();
+              oled1.clear();
+              oled1.println(F("Return"));
+              oled1.println(F("to data"));
+              oled1.print(F("collection")); 
+          } else if (pressCount > 16) {
+            pressCount = 0;
+            oled1.home();
+            oled1.clear();
+            oled1.println(F("Choose"));
+            oled1.println(F("Channel:"));
+            oled1.print(pressCount);
+          } else {
+            // For any number of presses between 0 and 15, 
+            // show the pressCount
+            Serial.print(F("Channel "));
+            Serial.println(pressCount);
+//            oled1.home();
+//            oled1.clear();
+//            oled1.println(F("Choose"));
+//            oled1.println(F("Channel:"));
+            oled1.setCursor(0,4);
+            oled1.clearToEOL();
+            oled1.print(pressCount);
+          }
+        } 
+        mainState = STATE_ENTER_CALIB; // remain in this state
+      } else if (calibEnterTime.unixtime() >= (chooseTime.unixtime() + longPressTime)){
+        // The wait time for button presses has elapsed, now deal with 
+        // the user's choice based on the value in pressCount
+        switch (pressCount) {
+          case 16:
+            // If the user didn't press the button again, return
+            // to normal data taking mode
+            mainState = STATE_DATA; 
+          break;
+          default:
+            // If the user pressed at least one time, we'll show that channel
+            mainState = STATE_CALIB_WAIT;
+          break;
+        } 
+      }
+    break; // end of STATE_CALIB_ENTER    
+    //*****************************************************
+     case STATE_CALIB_WAIT:
+      // If the user entered 1 or more button presses in 
+      // STATE_CALIB_ENTER, then we should arrive here. 
+      // Now we wait for the user to get the mussel situated and 
+      // press the button one more time to begin taking data.
+      // The green led will pulse on and off at 1Hz while waiting
+      if (newtime.second() != calibEnterTime.second() ) {
+        Serial.println(F("Waiting..."));
+        oled1.home();
+        oled1.clear();
+        oled1.println(F("Press"));
+        oled1.println(F("BUTTON 1"));
+        oled1.println(F("to go on"));
+        calibEnterTime = newtime; // reset calibEnterTime
+        digitalWrite(GRNLED, !digitalRead(GRNLED));
+      }
+      
+      // If the user finally presses the button, enter the active
+      // calibration state
+      if (buttonFlag) {
+        mainState = STATE_CALIB_ACTIVE;
+        buttonFlag = false; // reset buttonFlag
+        prevMillis = millis();
+        oled1.home();
+        oled1.clear();
+        oled1.print(F("Ch"));
+        oled1.print(pressCount);
+        oled1.print(F(": "));
+        // Create a data output file
+//        initCalibFile(newtime);
+//        Serial.print(F("Writing to "));
+//        Serial.println(filenameCalib);
+
+      }
+      
+    break;
+    //*****************************************************
+    case STATE_CALIB_ACTIVE:
+      // Show selected channel Hall effect values on screen
+      newMillis = millis(); // get current millis value
+      // If 10 or more milliseconds have elapsed, take a new
+      // reading from the accel/compass
+      if (newMillis >= prevMillis + 200) {
+        prevMillis = newMillis; // update millis
+        
+        // Choose which accel to sample based on pressCount value
+        shiftReg.shiftChannelSet(pressCount);
+        mux.muxChannelSet(pressCount);
+        oled1.setCursor(60,0);
+        oled1.clear(60,128,0,1);
+        oled1.print(readHall(ANALOG_IN)); 
+      } 
+      
+      
+      // The user can press button1 again to end calibration mode
+      // This would set buttonFlag true, and cause the if statement
+      // below to execute
+      if (buttonFlag) {
+        buttonFlag = false;
+//        calibfile.close(); // close and save the calib file
+//        Serial.println(F("Saving calib file"));
+       
+        // Open a new output file
+        initFileName(sd, logfile, rtc.now(), filename, serialValid, serialNumber );
+        oled1.home();
+        oled1.clear();
+        oled1.set1X();
+        oled1.println(F("New file: "));
+        oled1.println(filename);
+
+        mainState = STATE_DATA; // return to STATE_DATA
+        // Flash both LEDs 5 times to let user know we've exited
+        // calibration mode
+        for (byte i = 0; i < 5; i++){
+          digitalWrite(REDLED, HIGH);
+          digitalWrite(GRNLED, HIGH);
+          delay(100);
+          digitalWrite(REDLED, LOW);
+          digitalWrite(GRNLED, LOW);
+          delay(100);
+        }
+        delay(1000); 
+      } // end of if(buttonFlag) statement
+      
+    break; 
+  } // end of main state
+} // end of main loop
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+// This Interrupt Service Routine (ISR) is called every time the
+// TIMER2_OVF_vect goes high (==1), which happens when TIMER2
+// overflows. The ISR doesn't care if the AVR is awake or
+// in SLEEP_MODE_PWR_SAVE, it will still roll over and run this
+// routine. If the AVR is in SLEEP_MODE_PWR_SAVE, the TIMER2
+// interrupt will also reawaken it. This is used for the goToSleep() function
+ISR(TIMER2_OVF_vect) {
+  // nothing needs to happen here, this interrupt firing should 
+  // just awaken the AVR
+}
+
+//--------------- buttonFunc --------------------------------------------------
+// buttonFunc
+void buttonFunc(void){
+  detachInterrupt(0); // Turn off the interrupt
+  buttonTime1 = millis(); // Grab the current elapsed time
+  debounceState = DEBOUNCE_STATE_CHECK; // Switch to new debounce state
+  // Execution will now return to wherever it was interrupted, and this
+  // interrupt will still be disabled. 
+}
+
+//------------- writeToSD -----------------------------------------------
+// writeToSD function. This formats the available data in the
+// data arrays and writes them to the SD card file in a
+// comma-separated value format.
+void writeToSD (DateTime timestamp) {
+  // Reopen logfile. If opening fails, notify the user
+  if (!logfile.isOpen()) {
+    if (!logfile.open(filename, O_RDWR | O_CREAT | O_AT_END)) {
+      digitalWrite(REDLED, HIGH); // turn on error LED
+    }
+  }
+  // Write the unixtime
+  logfile.print(timestamp.unixtime(), DEC); // POSIX time value
+  logfile.print(F(","));
+  printTimeToSD(logfile, timestamp); // human-readable 
+  // Write the 16 Hall effect sensor values in a loop
+  for (byte i = 0; i < 16; i++){
+    logfile.print(F(","));
+    logfile.print(hallAverages[i]); 
+  }
+  logfile.println();
+  // logfile.close(); // force the buffer to empty
+
+  if (timestamp.second() % 30 == 0){
+      logfile.timestamp(T_WRITE, timestamp.year(),timestamp.month(), \
+      timestamp.day(),timestamp.hour(),timestamp.minute(),timestamp.second());
+  }
+}
+
+//---------freeRam-----------
+// A function to estimate the remaining free dynamic memory. On a 328P (Uno), 
+// the dynamic memory is 2048 bytes.
+int freeRam () {
+  extern int __heap_start, *__brkval;
+  int v;
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
+}
