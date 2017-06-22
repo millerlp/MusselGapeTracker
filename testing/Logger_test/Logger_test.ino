@@ -87,7 +87,24 @@ bool takeSamples = false;   // Flag to mark that samples should be taken on this
 bool writeData = false; // Flag to mark when to write to SD card
 bool serialValid = false; // Flag to show whether the serialNumber value is real or just zeros
 bool screenUpdate = false; // Flag to trigger updating of OLED screen
-//*************
+byte mcusr; // used to capture and store resetFlags
+
+//******* Extract and store reset flags **************
+uint8_t resetFlags __attribute__ ((section(".noinit"))); // Retrieve reset flags at startup
+// Function to extract reset flag values when using Optiboot 6.2 or later
+void resetFlagsInit(void) __attribute__ ((naked))
+                          __attribute__ ((used))
+                          __attribute__ ((section (".init0")));
+void resetFlagsInit(void)
+{
+  /*
+   * save the reset flags passed from the bootloader
+   * This is a "simple" matter of storing (STS) r2 in the special variable
+   * that we have created.  We use assembler to access the right variable.
+   */
+  __asm__ __volatile__ ("sts %0, r2\n" : "=m" (resetFlags) :);
+}                          
+//***********************************
 // Create real time clock object
 RTC_DS3231 rtc;
 char buf[20]; // declare a string buffer to hold the time result
@@ -119,7 +136,13 @@ Mux mux;
 
 //********************************************************
 void setup() {
-//  wdt_init();
+  mcusr = resetFlags;
+
+  // Call the checkMCUSR function to check reason for this restart.
+  // If only a brownout is detected, this function will put the board
+  // into a permanent sleep that can only be reset with the reset 
+  // button or a complete power-down.
+  checkMCUSR(mcusr, REDLED);  // In the MusselTrackerlib library
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
   // Set button2 as an input
@@ -156,6 +179,8 @@ void setup() {
   oled1.set400kHz();  
   oled1.setFont(Adafruit5x7);    
   oled1.clear(); 
+  oled1.home();
+  oled1.set2X();
   // Initialize the real time clock DS3231M
   Wire.begin(); // Start the I2C library with default options
   rtc.begin();  // Start the rtc object with default options
@@ -164,16 +189,32 @@ void setup() {
   // Now extract the time by making another character pointer that
   // is advanced 10 places into buf to skip over the date. 
   char *timebuf = buf + 10;
-  oled1.println();
-  oled1.set2X();
   for (int i = 0; i<11; i++){
     oled1.print(buf[i]);
   }
   oled1.println();
   oled1.println(timebuf);
-  for (byte i = 0; i<4; i++){
-    oled1.print(serialNumber[i]);
+  if (serialValid){
+    for (byte i = 0; i<4; i++){
+      oled1.print(serialNumber[i]);
+    }
+    oled1.println();
   }
+  Serial.println();
+  printBits(mcusr);
+  Serial.println();
+  // Show cause of reboot
+  if (mcusr & _BV(WDRF)) {
+    oled1.print(F("WDT RESET"));
+    Serial.println(F("WDT RESET"));
+  } else if (mcusr & _BV(EXTRF)){
+    oled1.print(F("RESET BTN"));
+    Serial.println(F("RESET BUTTON"));
+  } else if (mcusr & _BV(PORF)){
+    oled1.print(F("PWR RESET"));
+    Serial.println(F("Power-on reset"));
+  }
+  
   
   Serial.println(buf); // echo to serial port
   // Check if serial number from EEPROM was valid
@@ -186,7 +227,7 @@ void setup() {
     serialValid = false;
   }
 
-    delay(1000);
+  delay(1000);
 
   //***********************************************
   // Check that real time clock has a reasonable time value
@@ -325,7 +366,8 @@ void setup() {
     delay(50);
     newtime = rtc.now();
   }
-  watchdogSetup(); // Enable 2sec watchdog timer timeout
+//  watchdogSetup(); // Enable 2sec watchdog timer timeout
+  wdt_enable(WDTO_2S); // Enable 2sec watchdog timer timeout
   oldtime = newtime; // store the current time value
   screenOnTime = newtime; // store when the screen was turned on
   screenNum = 0; // start on first set of channels
@@ -778,11 +820,10 @@ ISR(TIMER2_OVF_vect) {
 }
 
 //---------watchdog interrupt------------
-ISR(WDT_vect){
-  // Do nothing here, only fires when watchdog timer expires
-  // which should force a complete reset/reboot
-  digitalWrite(REDLED, HIGH);
-}; 
+//ISR(WDT_vect){
+//  // Do nothing here, only fires when watchdog timer expires
+//  // which should force a complete reset/reboot
+//}; 
 
 
 
