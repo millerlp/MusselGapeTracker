@@ -119,6 +119,7 @@ Mux mux;
 
 //********************************************************
 void setup() {
+//  wdt_init();
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
   // Set button2 as an input
@@ -129,6 +130,12 @@ void setup() {
   digitalWrite(REDLED, LOW);
   pinMode(GRNLED,OUTPUT);
   digitalWrite(GRNLED, LOW);
+  for (byte i = 0; i < 5; i++){
+    digitalWrite(GRNLED, HIGH);
+    delay(50);
+    digitalWrite(GRNLED, LOW);
+    delay(50);
+  }
   Serial.begin(57600);
   Serial.println(F("Hello"));  
   // Initialize the shift register object
@@ -487,7 +494,7 @@ void loop() {
 
 
 
-//      if (loopCount == (SPS - 1)) {
+////      if (loopCount == (SPS - 1)) {
         // Now if loopCount is equal to the value in SAMPLES_PER_SECOND
         // (minus 1 for zero-based counting), then write out the contents
         // of the sample data arrays to the SD card. This should write data
@@ -570,18 +577,18 @@ void loop() {
         } // end of if (!buttonFlag)  OLED updating
 //        bitSet(PIND, 3); // clear bit, for monitoring on scope
         //---------------------------------------------------------
-//    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
+////    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
                         
                         
       // Increment loopCount after writing all the sample data to
       // the arrays
-//      loopCount++; 
-      digitalWrite(GRNLED, HIGH);
+////      loopCount++; 
+      digitalWrite(GRNLED, HIGH); // turn on to mark sleep start
       delay(5);
-      digitalWrite(GRNLED, LOW);
       bitSet(PIND, 3); // toggle on for monitoring
       goToSleep(); // function in MusselGapeTrackerlib.h  
       bitSet(PIND, 3); // toggle off for monitoring
+      digitalWrite(GRNLED, LOW); // shut off after sleep
       // After waking, this case should end and the main loop
       // should start again. 
       mainState = STATE_DATA;
@@ -774,6 +781,7 @@ ISR(TIMER2_OVF_vect) {
 ISR(WDT_vect){
   // Do nothing here, only fires when watchdog timer expires
   // which should force a complete reset/reboot
+  digitalWrite(REDLED, HIGH);
 }; 
 
 
