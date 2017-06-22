@@ -3,7 +3,6 @@
  * 
  * Testing datalogging capabilities
  * 
- * #TODO: Implement calibration mode to show output from a single channel
  * 
  */
 
@@ -16,7 +15,7 @@
 #include <EEPROM.h> // built in library, for reading the serial number stored in EEPROM
 #include "MusselGapeTrackerlib.h" // https://github.com/millerlp/MusselGapeTrackerlib
 
-#define SPS 2 // Samples per second (1 or 2)
+#define SPS 4 // Samples per second (1 or 2)
 
 // ***** TYPE DEFINITIONS *****
 typedef enum STATE
@@ -86,7 +85,8 @@ bool saveData = false;  // Flag to mark that saving to SD is possible
 volatile bool buttonFlag = false; // Flag to mark when button was pressed
 bool takeSamples = false;   // Flag to mark that samples should be taken on this loop
 bool writeData = false; // Flag to mark when to write to SD card
-bool serialValid = false; // flag to show whether the serialNumber value is real or just zeros
+bool serialValid = false; // Flag to show whether the serialNumber value is real or just zeros
+bool screenUpdate = false; // Flag to trigger updating of OLED screen
 //*************
 // Create real time clock object
 RTC_DS3231 rtc;
@@ -105,9 +105,12 @@ byte longPressTime = 5; // seconds to hold button1 to register a long press
 byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
 unsigned long newMillis;  // counter for faster operations
-
+DateTime screenOnTime;  // Store the last time the OLED screen was switched on.
+byte screenTimeout = 20; // Seconds to wait before shutting off OLED screen
 
 byte loopCount = 0;
+byte screenNum = 0; // keep track of which set of channels to show onscreen
+bool screenOn = true; // turn OLEDs on or off
 //******************
 // Create ShiftReg and Mux objects
 ShiftReg shiftReg;
@@ -118,8 +121,9 @@ Mux mux;
 void setup() {
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
-  // Set button1 as an input
-  pinMode(BUTTON1, INPUT_PULLUP);
+  // Set button2 as an input
+  pinMode(BUTTON2, OUTPUT);
+  digitalWrite(BUTTON2, LOW);
   // Set up the LEDs as output
   pinMode(REDLED,OUTPUT);
   digitalWrite(REDLED, LOW);
@@ -301,6 +305,12 @@ void setup() {
   // an updated time
   newtime = startTIMER2(rtc.now(), rtc, SPS);
 
+  attachInterrupt(0, buttonFunc, LOW);  // BUTTON1 interrupt
+  buttonFlag = false;
+  screenOn = true; // set flag true to show screen is on
+  // Take an initial set of readings for display
+  read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
+  
   // Cycle briefly until we reach 9 sec, so that the
   // data collection loop will start on a nice even 0 sec
   // time stamp. 
@@ -308,8 +318,10 @@ void setup() {
     delay(50);
     newtime = rtc.now();
   }
-  attachInterrupt(0, buttonFunc, LOW);  // BUTTON1 interrupt
+  watchdogSetup(); // Enable 2sec watchdog timer timeout
   oldtime = newtime; // store the current time value
+  screenOnTime = newtime; // store when the screen was turned on
+  screenNum = 0; // start on first set of channels
   oldday = oldtime.day(); // store the current day value
   mainState = STATE_DATA; // Start the main loop in data-taking state
 }
@@ -318,6 +330,8 @@ void setup() {
 void loop() {
   // Always start the loop by checking the time
   newtime = rtc.now(); // Grab the current time
+  // Also reset the watchdog timer every time the loop loops
+  wdt_reset(); 
   //-------------------------------------------------------------
   // Begin loop by checking the debounceState to 
   // handle any button presses
@@ -374,8 +388,8 @@ void loop() {
           // depending on which mainState the program is in.
           buttonFlag = true;
           
-        } else if (checkTime.unixtime() > (buttonTime.unixtime() + mediumPressTime) &
-          checkTime.unixtime() < (buttonTime.unixtime() + longPressTime)) {
+        } else if ( (checkTime.unixtime() > (buttonTime.unixtime() + mediumPressTime)) &
+          (checkTime.unixtime() < (buttonTime.unixtime() + longPressTime)) ) {
           // User held button1 long enough to enter calibration
           // mode, but not long enough to enter close file mode
           // First close the current logfile
@@ -415,7 +429,7 @@ void loop() {
         // Now that the button press has been handled, return
         // to DEBOUNCE_STATE_IDLE and await the next button press
         debounceState = DEBOUNCE_STATE_IDLE;
-        // Restart the button1 interrupt now that the button
+        // Restart the button1 interrupt now that button1
         // has been released
         attachInterrupt(0, buttonFunc, LOW);
       } else {
@@ -440,11 +454,16 @@ void loop() {
       // and oldtime updated to equal newtime.
       if (oldtime.second() != newtime.second()) {
         oldtime = newtime; // update oldtime
-        loopCount = 0; // reset loopCount
-        takeSamples = true; // set flag to take samples 
+//        loopCount = 0; // reset loopCount
+        takeSamples = true; // set flag to take samples
+        screenUpdate = true; // set flag to update oled screen 
         if (saveData){
           writeData = true; // set flag to write samples to SD card     
         }
+      } else {
+        takeSamples = false; // it is not time to take a new sample
+        writeData = false; // it is not time to write data to card
+        screenUpdate = false; // it is not time to update the oled screen
       }
 
       if (takeSamples){
@@ -459,27 +478,20 @@ void loop() {
               //----------------------------------------------
               mux.muxChannelSet(ch); // Call function to set address bits             
               //----------------------------------------------
-              // Take 4 analog readings from the same channel and average them
-              unsigned int rawAnalog = 0;
-              analogRead(ANALOG_IN); // throw away 1st reading
-              for (byte i = 0; i<4; i++){
-                  rawAnalog = rawAnalog + analogRead(ANALOG_IN);
-                  delay(2);
-              }
-              // Do a 2-bit right shift to divide rawAnalog
-              // by 4 to get the average of the 4 readings
-              hallAverages[ch] = rawAnalog >> 2;           
+              // Take 4 analog readings from the same channel, average + store them
+              hallAverages[ch] = readHall(ANALOG_IN);         
           }
-          // Put all hall sensors to sleep
+          // Put all hall sensors to sleep by writing 0's to all channels
           shiftReg.clear();
       }
 
 
-      // Now if loopCount is equal to the value in SAMPLES_PER_SECOND
-      // (minus 1 for zero-based counting), then write out the contents
-      // of the sample data arrays to the SD card. This should write data
-      // once every second.
-      if (loopCount == (SPS - 1)) {
+
+//      if (loopCount == (SPS - 1)) {
+        // Now if loopCount is equal to the value in SAMPLES_PER_SECOND
+        // (minus 1 for zero-based counting), then write out the contents
+        // of the sample data arrays to the SD card. This should write data
+        // once every second.
         if (saveData && writeData){
           // If saveData is true, and it's time to writeData, then do this:
           // Check to see if a new day has started. If so, open a new file
@@ -495,30 +507,81 @@ void loop() {
           
           // Call the writeToSD function to output the data array contents
           // to the SD card
+//          bitSet(PIND, 3); toggle on
           writeToSD(newtime);
-          writeData = false; // reset flag          
+//          bitSet(PIND, 3); // toggle off
+          writeData = false; // reset flag
+          printTimeSerial(newtime);
+          Serial.println();          
         }       
-//        printTimeSerial(oldtime);
-        oled1.home();
-        oled1.clear();
-        oled1.set2X();
-        for (byte r = 0; r < 4; r++){
-          oled1.print(F("Ch"));
-          oled1.print(r);
-          oled1.print(F(": "));
-          oled1.println(hallAverages[r]);
-        }
-        
-    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
+        //-------------------------------------------------------------
+//        bitSet(PIND, 3); // toggle on, for monitoring on scope
+        // OLED screen updating
+        // Now check to see whether the button has been pressed in this
+        // state (buttonFlag). If it has, update OLED displays
+        if (!buttonFlag) {
+          // If the buttonFlag is false, button has not been pressed.
+          // So check whether the screen is on, and shut it off it 
+          // has timed out. Otherwise update the hall data. 
+          if (!screenOn) {
+            // If screen is off, do nothing here
+          } else {
+            // If screen is on, check how long it's been on
+            if ( (newtime.unixtime() - screenOnTime.unixtime()) > screenTimeout){
+              // Screen has been on too long, turn off
+              oled1.home();
+              oled1.clear();
+              screenOn = false; // set flag to show screen is off
+            } else {
+              if (screenUpdate){
+                // Screen should stay on, update with current channel values 
+                OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);
+                screenUpdate = false;
+              }
+            }
+          }
+        } else if (buttonFlag) {
+          // The buttonFlag is true, the user has registered a short press
+          // to either wake the screen or switch to the next set of channels
+          
+          // Update screenOnTime so that screen will remain on for a 
+          // length of screenTimeout from this point
+          screenOnTime = newtime;
+          buttonFlag = false; // buttonFlag has now been handled, reset it
+          
+          if (!screenOn){         // If screen is not currently on...
+            // Call the oled screen update function (in MusselGapeTrackerlib.h)
+            OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);              
+            screenOn = true; // Set flag to true since oled screen is now on
+            screenUpdate = false; // Set false just for good measure
+          } else if (screenOn){
+            // Screen is already on, so user must want to increment to 
+            // next set of channels
+            screenNum++;
+            if (screenNum > 3){
+              screenNum = 0; // reset at 0
+            }
+            if (screenUpdate){
+              // Now call the oled screen update function (in MusselGapeTrackerlib.h)
+              OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);
+              screenUpdate = false; // Set flag false now
+            }
+          }
+        } // end of if (!buttonFlag)  OLED updating
+//        bitSet(PIND, 3); // clear bit, for monitoring on scope
+        //---------------------------------------------------------
+//    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
                         
                         
       // Increment loopCount after writing all the sample data to
       // the arrays
-      loopCount++; 
+//      loopCount++; 
       digitalWrite(GRNLED, HIGH);
       delay(5);
       digitalWrite(GRNLED, LOW);
+      bitSet(PIND, 3); // toggle on for monitoring
       goToSleep(); // function in MusselGapeTrackerlib.h  
+      bitSet(PIND, 3); // toggle off for monitoring
       // After waking, this case should end and the main loop
       // should start again. 
       mainState = STATE_DATA;
@@ -588,10 +651,6 @@ void loop() {
             // show the pressCount
             Serial.print(F("Channel "));
             Serial.println(pressCount);
-//            oled1.home();
-//            oled1.clear();
-//            oled1.println(F("Choose"));
-//            oled1.println(F("Channel:"));
             oled1.setCursor(0,4);
             oled1.clearToEOL();
             oled1.print(pressCount);
@@ -643,11 +702,6 @@ void loop() {
         oled1.print(F("Ch"));
         oled1.print(pressCount);
         oled1.print(F(": "));
-        // Create a data output file
-//        initCalibFile(newtime);
-//        Serial.print(F("Writing to "));
-//        Serial.println(filenameCalib);
-
       }
       
     break;
@@ -674,8 +728,6 @@ void loop() {
       // below to execute
       if (buttonFlag) {
         buttonFlag = false;
-//        calibfile.close(); // close and save the calib file
-//        Serial.println(F("Saving calib file"));
        
         // Open a new output file
         initFileName(sd, logfile, rtc.now(), filename, serialValid, serialNumber );
@@ -697,6 +749,8 @@ void loop() {
           delay(100);
         }
         delay(1000); 
+        screenOnTime = rtc.now();
+        screenOn = true;
       } // end of if(buttonFlag) statement
       
     break; 
@@ -715,6 +769,14 @@ ISR(TIMER2_OVF_vect) {
   // nothing needs to happen here, this interrupt firing should 
   // just awaken the AVR
 }
+
+//---------watchdog interrupt------------
+ISR(WDT_vect){
+  // Do nothing here, only fires when watchdog timer expires
+  // which should force a complete reset/reboot
+}; 
+
+
 
 //--------------- buttonFunc --------------------------------------------------
 // buttonFunc
@@ -755,6 +817,8 @@ void writeToSD (DateTime timestamp) {
   }
 }
 
+
+
 //---------freeRam-----------
 // A function to estimate the remaining free dynamic memory. On a 328P (Uno), 
 // the dynamic memory is 2048 bytes.
@@ -763,3 +827,5 @@ int freeRam () {
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
+
+
