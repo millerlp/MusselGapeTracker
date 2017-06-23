@@ -2,7 +2,13 @@
  * Logger_test.ino
  * 
  * Testing datalogging capabilities
- * 
+ * The bootloader installed on the board should be Optiboot v6.2 or later
+ * which can be accessed by adding Optiboot to the Boards Manager.
+ * https://github.com/Optiboot/optiboot 
+ * After installation of Optiboot in Arduino, 
+ * choose the entry Optiboot on 32-pin cpus, 8MHz (int), ATmega328p
+ * and then run Burn Bootloader with a programmer attached to the 
+ * board's ICSP 3x2 header. 
  * 
  */
 
