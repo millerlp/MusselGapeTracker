@@ -366,7 +366,7 @@ void setup() {
     delay(50);
     newtime = rtc.now();
   }
-//  watchdogSetup(); // Enable 2sec watchdog timer timeout
+
   wdt_enable(WDTO_2S); // Enable 2sec watchdog timer timeout
   oldtime = newtime; // store the current time value
   screenOnTime = newtime; // store when the screen was turned on
@@ -561,7 +561,8 @@ void loop() {
 //          bitSet(PIND, 3); // toggle off
           writeData = false; // reset flag
           printTimeSerial(newtime);
-          Serial.println();          
+          Serial.println();
+          delay(5);          
         }       
         //-------------------------------------------------------------
 //        bitSet(PIND, 3); // toggle on, for monitoring on scope
@@ -625,12 +626,12 @@ void loop() {
       // Increment loopCount after writing all the sample data to
       // the arrays
 ////      loopCount++; 
-      digitalWrite(GRNLED, HIGH); // turn on to mark sleep start
-      delay(5);
+//      digitalWrite(GRNLED, HIGH); // turn on to mark sleep start
+
       bitSet(PIND, 3); // toggle on for monitoring
       goToSleep(); // function in MusselGapeTrackerlib.h  
       bitSet(PIND, 3); // toggle off for monitoring
-      digitalWrite(GRNLED, LOW); // shut off after sleep
+//      digitalWrite(GRNLED, LOW); // shut off after sleep
       // After waking, this case should end and the main loop
       // should start again. 
       mainState = STATE_DATA;
