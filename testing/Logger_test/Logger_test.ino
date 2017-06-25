@@ -581,6 +581,12 @@ void loop() {
               // Screen has been on too long, turn off
               oled1.home();
               oled1.clear();
+              // Manual shut down of SSD1306 oled display driver
+              Wire.beginTransmission(0x3C); // oled1 display address
+              Wire.write(0x80); // oled set to Command mode (0x80) instead of data mode (0x40)
+              Wire.write(0xAE); // oled command to power down (0xAF should power back up)
+              Wire.endTransmission(); // stop transmitting
+
               screenOn = false; // set flag to show screen is off
             } else {
               if (screenNum <= 3){
@@ -608,6 +614,12 @@ void loop() {
           buttonFlag = false; // buttonFlag has now been handled, reset it
           
           if (!screenOn){         // If screen is not currently on...
+              // Manual startup of SSD1306 oled display driver
+              Wire.beginTransmission(0x3C); // oled1 display address
+              Wire.write(0x80); // oled set to Command mode (0x80) instead of data mode (0x40)
+              Wire.write(0xAF); // oled command 0xAF should power back up
+              Wire.endTransmission(); // stop transmitting            
+              delay(50); // give display time to fire back up to avoid damaging it.
             if (screenNum <= 3){
               // Call the oled screen update function (in MusselGapeTrackerlib.h)
               OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);              
