@@ -660,15 +660,20 @@ void loop() {
       // has closed the data file and started a new one. 
       for (byte i = 0; i < 10; i++){
         digitalWrite(GRNLED, HIGH);
-        delay(100);
+        delay(60);
         digitalWrite(GRNLED, LOW);
-        delay(100);
+        delay(60);
       }
       // Open a new output file
       initFileName(sd, logfile, rtc.now(), filename, serialValid, serialNumber ); 
       Serial.print(F("Writing to "));
       printTimeSerial(newtime);
       Serial.println(); 
+      // Set some flags so the OLED screen updates properly
+      screenOn = true;
+      screenUpdate = true;
+      screenChange = true;
+      screenOnTime = oldtime = newtime; 
       mainState = STATE_DATA; // Return to normal data collection
     break; // end of case STATE_FILE_CLOSE    
     //*****************************************************
