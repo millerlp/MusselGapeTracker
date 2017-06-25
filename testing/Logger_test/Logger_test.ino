@@ -93,6 +93,7 @@ bool takeSamples = false;   // Flag to mark that samples should be taken on this
 bool writeData = false; // Flag to mark when to write to SD card
 bool serialValid = false; // Flag to show whether the serialNumber value is real or just zeros
 bool screenUpdate = false; // Flag to trigger updating of OLED screen
+bool screenChange = true; // Flag to trigger a full redraw of OLED screen, including channel labels
 byte mcusr; // used to capture and store resetFlags
 
 //******* Extract and store reset flags **************
@@ -600,9 +601,10 @@ void loop() {
               screenOn = false; // set flag to show screen is off
             } else {
               if (screenUpdate){
-                // Screen should stay on, update with current channel values 
-                OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);
+                // Screen should stay on
+                OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);
                 screenUpdate = false;
+                screenChange = false; 
               }
             }
           }
@@ -613,13 +615,15 @@ void loop() {
           // Update screenOnTime so that screen will remain on for a 
           // length of screenTimeout from this point
           screenOnTime = newtime;
+          screenChange = true; // Force a full redraw of the screen to show new channel labels
           buttonFlag = false; // buttonFlag has now been handled, reset it
           
           if (!screenOn){         // If screen is not currently on...
             // Call the oled screen update function (in MusselGapeTrackerlib.h)
-            OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);              
+            OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);              
             screenOn = true; // Set flag to true since oled screen is now on
             screenUpdate = false; // Set false just for good measure
+            screenChange = false; // Set false now that screen has been updated
           } else if (screenOn){
             // Screen is already on, so user must want to increment to 
             // next set of channels
@@ -629,8 +633,9 @@ void loop() {
             }
             if (screenUpdate){
               // Now call the oled screen update function (in MusselGapeTrackerlib.h)
-              OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1);
+              OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);
               screenUpdate = false; // Set flag false now
+              screenChange = false; // Set false for next cycle
             }
           }
         } // end of if (!buttonFlag)  OLED updating
