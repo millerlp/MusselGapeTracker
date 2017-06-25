@@ -213,6 +213,15 @@ void setup() {
   if (mcusr & _BV(WDRF)) {
     oled1.print(F("WDT RESET"));
     Serial.println(F("WDT RESET"));
+    // Capture here
+    while(1){
+      digitalWrite(REDLED, HIGH);
+      digitalWrite(GRNLED, HIGH);
+      delay(100);
+      digitalWrite(REDLED, LOW);
+      digitalWrite(GRNLED, LOW);
+      delay(100);     
+    }
   } else if (mcusr & _BV(EXTRF)){
     oled1.print(F("RESET BTN"));
     Serial.println(F("RESET BUTTON"));
@@ -387,6 +396,7 @@ void loop() {
   newtime = rtc.now(); // Grab the current time
   // Also reset the watchdog timer every time the loop loops
   wdt_reset(); 
+
   //-------------------------------------------------------------
   // Begin loop by checking the debounceState to 
   // handle any button presses
@@ -632,12 +642,11 @@ void loop() {
       // Increment loopCount after writing all the sample data to
       // the arrays
 ////      loopCount++; 
-//      digitalWrite(GRNLED, HIGH); // turn on to mark sleep start
 
-      bitSet(PIND, 3); // toggle on for monitoring
+//      bitSet(PIND, 3); // toggle on for monitoring
       goToSleep(); // function in MusselGapeTrackerlib.h  
-      bitSet(PIND, 3); // toggle off for monitoring
-//      digitalWrite(GRNLED, LOW); // shut off after sleep
+//      bitSet(PIND, 3); // toggle off for monitoring
+
       // After waking, this case should end and the main loop
       // should start again. 
       mainState = STATE_DATA;
@@ -657,7 +666,7 @@ void loop() {
       oled1.println(filename);      
       // Briefly flash the green led to show that program 
       // has closed the data file and started a new one. 
-      for (byte i = 0; i < 15; i++){
+      for (byte i = 0; i < 10; i++){
         digitalWrite(GRNLED, HIGH);
         delay(100);
         digitalWrite(GRNLED, LOW);
@@ -742,7 +751,7 @@ void loop() {
         oled1.clear();
         oled1.println(F("Press"));
         oled1.println(F("BUTTON 1"));
-        oled1.println(F("to go on"));
+        oled1.println(F("to proceed"));
         calibEnterTime = newtime; // reset calibEnterTime
         digitalWrite(GRNLED, !digitalRead(GRNLED));
       }
@@ -773,9 +782,11 @@ void loop() {
         // Choose which accel to sample based on pressCount value
         shiftReg.shiftChannelSet(pressCount);
         mux.muxChannelSet(pressCount);
+        unsigned int newReading = readHall(ANALOG_IN);
         oled1.setCursor(60,0);
-        oled1.clear(60,128,0,1);
-        oled1.print(readHall(ANALOG_IN)); 
+        oled1.clear(60,128,0,1); // Only clear the portion of the line with the value
+        oled1.print(newReading);
+        Serial.println(newReading); // echo to serial monitor
       } 
       
       
@@ -804,7 +815,7 @@ void loop() {
           digitalWrite(GRNLED, LOW);
           delay(100);
         }
-        delay(1000); 
+        delay(800); 
         screenOnTime = rtc.now();
         screenOn = true;
       } // end of if(buttonFlag) statement
