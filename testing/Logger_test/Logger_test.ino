@@ -133,8 +133,6 @@ unsigned long prevMillis;  // counter for faster operations
 unsigned long newMillis;  // counter for faster operations
 DateTime screenOnTime;  // Store the last time the OLED screen was switched on.
 byte screenTimeout = 20; // Seconds to wait before shutting off OLED screen
-
-byte loopCount = 0;
 byte screenNum = 0; // keep track of which set of channels to show onscreen
 bool screenOn = true; // turn OLEDs on or off
 //******************
@@ -585,7 +583,7 @@ void loop() {
               oled1.clear();
               screenOn = false; // set flag to show screen is off
             } else {
-              if (screenUpdate){
+              if (screenNum <= 3){
                 // Screen should stay on
                 OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);
                 screenUpdate = false;
@@ -593,6 +591,9 @@ void loop() {
                 for (byte i = 0; i < 16; i++){
                   prevAverages[i] = hallAverages[i]; // update prevAverages
                 }
+              } else if (screenNum == 4){
+                // Do nothing here, the filename is already displayed and doesn't 
+                // need to be updated
               }
             }
           }
@@ -607,22 +608,43 @@ void loop() {
           buttonFlag = false; // buttonFlag has now been handled, reset it
           
           if (!screenOn){         // If screen is not currently on...
-            // Call the oled screen update function (in MusselGapeTrackerlib.h)
-            OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);              
-            screenOn = true; // Set flag to true since oled screen is now on
-            screenUpdate = false; // Set false just for good measure
-            screenChange = false; // Set false now that screen has been updated
-            for (byte i = 0; i < 16; i++){
-                prevAverages[i] = hallAverages[i]; // update prevAverages
+            if (screenNum <= 3){
+              // Call the oled screen update function (in MusselGapeTrackerlib.h)
+              OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);              
+              screenOn = true; // Set flag to true since oled screen is now on
+              screenUpdate = false; // Set false just for good measure
+              screenChange = false; // Set false now that screen has been updated
+              for (byte i = 0; i < 16; i++){
+                  prevAverages[i] = hallAverages[i]; // update prevAverages
+              }
+            } else if (screenNum == 4){
+              oled1.home();
+              oled1.clear();
+              oled1.set1X();
+              oled1.println(F("Writing to:"));
+              oled1.println(filename); // show current filename
+              oled1.set2X();
+              screenOn = true;
+              screenUpdate = false;
+              screenChange = false; 
             }
           } else if (screenOn){
             // Screen is already on, so user must want to increment to 
-            // next set of channels
+            // next screen full of channels (or show filename on screen 4)
             screenNum++;
-            if (screenNum > 3){
+            if (screenNum > 4){
               screenNum = 0; // reset at 0
             }
-            if (screenUpdate){
+            if (screenNum == 4) {
+              oled1.home();
+              oled1.clear();
+              oled1.set1X();
+              oled1.println(F("Writing to:"));
+              oled1.println(filename);  // show current filename
+              oled1.set2X();
+              screenUpdate = false;
+              screenChange = false;              
+            } else if (screenNum <= 3){
               // Now call the oled screen update function (in MusselGapeTrackerlib.h)
               OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);
               screenUpdate = false; // Set flag false now
@@ -630,7 +652,7 @@ void loop() {
               for (byte i = 0; i < 16; i++){
                 prevAverages[i] = hallAverages[i]; // update prevAverages
               }
-            }
+            } 
           } // end of if (!screenOn)
         } // end of if (!buttonFlag)  OLED updating
       } // end of if (screenUpdate)
