@@ -21,15 +21,17 @@
 #include <EEPROM.h> // built in library, for reading the serial number stored in EEPROM
 #include "MusselGapeTrackerlib.h" // https://github.com/millerlp/MusselGapeTrackerlib
 
-#define SPS 4 // Samples per second (1 or 2)
+//*********************************************************************
+#define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
+//*********************************************************************
+
+#define SPS 4 // Sleeps per second. Leave this set at 4
 
 // ***** TYPE DEFINITIONS *****
 typedef enum STATE
 {
   STATE_DATA, // collecting data normally
   STATE_ENTER_CALIB, // user wants to calibrate
-//  STATE_CALIB1, // user chooses to calibrate accel 1
-//  STATE_CALIB2, // user chooses to calibrate accel 2
   STATE_CALIB_WAIT, // waiting for user to signal mussel is positioned
   STATE_CALIB_ACTIVE, // taking calibration data, button press ends this
   STATE_CLOSE_FILE, // close data file, start new file
@@ -374,10 +376,10 @@ void setup() {
   screenOn = true; // set flag true to show screen is on
   // Take an initial set of readings for display
   read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
-  
-  // Cycle briefly until we reach 9 sec, so that the
-  // data collection loop will start on a nice even 0 sec
-  // time stamp. 
+  shiftReg.clear(); 
+
+  // Cycle briefly until we reach an even 10 sec value, so that the
+  // data collection loop will start on a nice even time stamp. 
   while (!( (newtime.second() % 10) == 0)){
     delay(50);
     newtime = rtc.now();
@@ -516,17 +518,19 @@ void loop() {
       // Check to see if the current seconds value
       // is equal to oldtime.second(). If so, we
       // are still in the same second. If not,
-      // the fracSec value should be reset to 0
-      // and oldtime updated to equal newtime.
+      //  oldtime updates to equal newtime.
       if (oldtime.second() != newtime.second()) {
         oldtime = newtime; // update oldtime
-//        loopCount = 0; // reset loopCount
+        // Set these flags true once per second
         takeSamples = true; // set flag to take samples
         screenUpdate = true; // set flag to update oled screen 
-        if (saveData){
-          writeData = true; // set flag to write samples to SD card     
+        // If it's a save interval, set writeData = true
+        if ( (newtime.second() % SAVE_INTERVAL) == 0){
+          if (saveData){
+            writeData = true; // set flag to write samples to SD card     
+          }          
         }
-      } else {
+      } else { // if a new second hasn't rolled over yet
         takeSamples = false; // it is not time to take a new sample
         writeData = false; // it is not time to write data to card
         screenUpdate = false; // it is not time to update the oled screen
@@ -535,55 +539,36 @@ void loop() {
       if (takeSamples){
           // A new second has turned over, take a set of samples from 
           // the 16 hall effect sensors
-          for (byte ch = 0; ch < 16; ch++){
-              // Cycle through each channel
-              //-------------------------------------------
-              // Call function to set shift register bit to wake
-              // appropriate sensor
-              shiftReg.shiftChannelSet(ch); 
-              //----------------------------------------------
-              mux.muxChannelSet(ch); // Call function to set address bits             
-              //----------------------------------------------
-              // Take 4 analog readings from the same channel, average + store them
-              hallAverages[ch] = readHall(ANALOG_IN);         
-          }
+          read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
           // Put all hall sensors to sleep by writing 0's to all channels
           shiftReg.clear();
       }
-
-
-
-////      if (loopCount == (SPS - 1)) {
-        // Now if loopCount is equal to the value in SAMPLES_PER_SECOND
-        // (minus 1 for zero-based counting), then write out the contents
-        // of the sample data arrays to the SD card. This should write data
-        // once every second.
-        if (saveData && writeData){
-          // If saveData is true, and it's time to writeData, then do this:
-          // Check to see if a new day has started. If so, open a new file
-          // with the initFileName() function
-          if (oldtime.day() != oldday) {
-            // Close existing file
-            logfile.close();
-            // Generate a new output filename based on the new date
-            initFileName(sd, logfile, oldtime, filename, serialValid, serialNumber); // generate a file name
-            // Update oldday value to match the new day
-            oldday = oldtime.day();
-          }
-          
-          // Call the writeToSD function to output the data array contents
-          // to the SD card
+      if (saveData && writeData){
+        // If saveData is true, and it's time to writeData, then do this:
+        // Check to see if a new day has started. If so, open a new file
+        // with the initFileName() function
+        if (oldtime.day() != oldday) {
+          // Close existing file
+          logfile.close();
+          // Generate a new output filename based on the new date
+          initFileName(sd, logfile, oldtime, filename, serialValid, serialNumber); // generate a file name
+          // Update oldday value to match the new day
+          oldday = oldtime.day();
+        }
+        // Call the writeToSD function to output the data array contents
+        // to the SD card
 //          bitSet(PIND, 3); toggle on
-          writeToSD(newtime);
+        writeToSD(newtime);
 //          bitSet(PIND, 3); // toggle off
-          writeData = false; // reset flag
-          printTimeSerial(newtime);
-          Serial.println();
-          delay(5);          
-        }       
-        //-------------------------------------------------------------
-//        bitSet(PIND, 3); // toggle on, for monitoring on scope
-        // OLED screen updating
+        writeData = false; // reset flag
+        printTimeSerial(newtime);
+        Serial.println();
+        delay(5);          
+      }       
+      //-------------------------------------------------------------
+      // OLED screen updating
+      // Only update if screenUpdate is true and the following conditions allow it
+      if (screenUpdate){
         // Now check to see whether the button has been pressed in this
         // state (buttonFlag). If it has, update OLED displays
         if (!buttonFlag) {
@@ -602,9 +587,12 @@ void loop() {
             } else {
               if (screenUpdate){
                 // Screen should stay on
-                OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);
+                OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);
                 screenUpdate = false;
                 screenChange = false; 
+                for (byte i = 0; i < 16; i++){
+                  prevAverages[i] = hallAverages[i]; // update prevAverages
+                }
               }
             }
           }
@@ -620,10 +608,13 @@ void loop() {
           
           if (!screenOn){         // If screen is not currently on...
             // Call the oled screen update function (in MusselGapeTrackerlib.h)
-            OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);              
+            OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);              
             screenOn = true; // Set flag to true since oled screen is now on
             screenUpdate = false; // Set false just for good measure
             screenChange = false; // Set false now that screen has been updated
+            for (byte i = 0; i < 16; i++){
+                prevAverages[i] = hallAverages[i]; // update prevAverages
+            }
           } else if (screenOn){
             // Screen is already on, so user must want to increment to 
             // next set of channels
@@ -633,20 +624,16 @@ void loop() {
             }
             if (screenUpdate){
               // Now call the oled screen update function (in MusselGapeTrackerlib.h)
-              OLEDscreenUpdate(screenNum, hallAverages, oled1, I2C_ADDRESS1, screenChange);
+              OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);
               screenUpdate = false; // Set flag false now
               screenChange = false; // Set false for next cycle
+              for (byte i = 0; i < 16; i++){
+                prevAverages[i] = hallAverages[i]; // update prevAverages
+              }
             }
-          }
+          } // end of if (!screenOn)
         } // end of if (!buttonFlag)  OLED updating
-//        bitSet(PIND, 3); // clear bit, for monitoring on scope
-        //---------------------------------------------------------
-////    } // end of if (loopCount >= (SAMPLES_PER_SECOND - 1))                   
-                        
-                        
-      // Increment loopCount after writing all the sample data to
-      // the arrays
-////      loopCount++; 
+      } // end of if (screenUpdate)
 
 //      bitSet(PIND, 3); // toggle on for monitoring
       goToSleep(); // function in MusselGapeTrackerlib.h  
