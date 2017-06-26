@@ -386,6 +386,8 @@ void setup() {
     oled1.clearToEOL();
     oled1.println(F("Writing to: "));
     oled1.println(filename);
+    oled1.println(F("Save interval (sec):"));
+    oled1.println(SAVE_INTERVAL);
     delay(1000);
   } else {
     // if saveData is false
@@ -568,11 +570,14 @@ void loop() {
       }
 
       if (takeSamples){
-          // A new second has turned over, take a set of samples from 
-          // the 16 hall effect sensors
+         if (screenOn | writeData){
+          // If the onboard screen is currently on, or it's time to
+          // write samples to the SD card, then
+          // take a set of samples from the 16 hall effect sensors
           read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
           // Put all hall sensors to sleep by writing 0's to all channels
           shiftReg.clear();
+         }
       }
       if (saveData && writeData){
         // If saveData is true, and it's time to writeData, then do this:
@@ -614,6 +619,11 @@ void loop() {
               // Screen has been on too long, turn off
               oled1.home();
               oled1.clear();
+              // Manual shut down of SSD1306 oled display driver
+              Wire.beginTransmission(0x3C); // oled1 display address
+              Wire.write(0x80); // oled set to Command mode (0x80) instead of data mode (0x40)
+              Wire.write(0xAE); // oled command to power down (0xAF should power back up)
+              Wire.endTransmission(); // stop transmitting
               screenOn = false; // set flag to show screen is off
             } else {
               if (screenNum <= 3){
@@ -641,6 +651,12 @@ void loop() {
           buttonFlag = false; // buttonFlag has now been handled, reset it
           
           if (!screenOn){         // If screen is not currently on...
+               // Manual startup of SSD1306 oled display driver
+              Wire.beginTransmission(0x3C); // oled1 display address
+              Wire.write(0x80); // oled set to Command mode (0x80) instead of data mode (0x40)
+              Wire.write(0xAF); // oled command 0xAF should power back up
+              Wire.endTransmission(); // stop transmitting            
+              delay(50); // give display time to fire back up to avoid damaging it.
             if (screenNum <= 3){
               // Call the oled screen update function (in MusselGapeTrackerlib.h)
               OLEDscreenUpdate(screenNum, hallAverages, prevAverages, oled1, I2C_ADDRESS1, screenChange);              
