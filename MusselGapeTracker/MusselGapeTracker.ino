@@ -409,7 +409,6 @@ void setup() {
   screenOn = true; // set flag true to show screen is on
   // Take an initial set of readings for display
   read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
-  shiftReg.clear(); 
 
   // Cycle briefly until we reach an even 10 sec value, so that the
   // data collection loop will start on a nice even time stamp. 
@@ -575,8 +574,6 @@ void loop() {
           // write samples to the SD card, then
           // take a set of samples from the 16 hall effect sensors
           read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
-          // Put all hall sensors to sleep by writing 0's to all channels
-          shiftReg.clear();
          }
       }
       if (saveData && writeData){
@@ -593,9 +590,9 @@ void loop() {
         }
         // Call the writeToSD function to output the data array contents
         // to the SD card
-//          bitSet(PIND, 3); toggle on
+          bitSet(PIND, 3);  // toggle on
         writeToSD(newtime);
-//          bitSet(PIND, 3); // toggle off
+          bitSet(PIND, 3);  // toggle off
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
@@ -672,6 +669,8 @@ void loop() {
               oled1.set1X();
               oled1.println(F("Writing to:"));
               oled1.println(filename); // show current filename
+              oled1.println(F("Save interval (sec)"));
+              oled1.println(SAVE_INTERVAL);
               oled1.set2X();
               screenOn = true;
               screenUpdate = false;
@@ -690,6 +689,8 @@ void loop() {
               oled1.set1X();
               oled1.println(F("Writing to:"));
               oled1.println(filename);  // show current filename
+              oled1.println(F("Save interval (sec)"));
+              oled1.println(SAVE_INTERVAL);
               oled1.set2X();
               screenUpdate = false;
               screenChange = false;              
@@ -726,7 +727,9 @@ void loop() {
       oled1.println(F("File"));
       oled1.println(F("Closed"));
       oled1.set1X();
-      oled1.println(filename);      
+      oled1.println(filename);
+      oled1.println(F("Save interval (sec)"));
+      oled1.println(SAVE_INTERVAL);      
       // Briefly flash the green led to show that program 
       // has closed the data file and started a new one. 
       for (byte i = 0; i < 10; i++){
@@ -738,6 +741,7 @@ void loop() {
       // Open a new output file
       initFileName(sd, logfile, rtc.now(), filename, serialValid, serialNumber ); 
       Serial.print(F("Writing to "));
+      Serial.println(filename);
       printTimeSerial(newtime);
       Serial.println(); 
       // Set some flags so the OLED screen updates properly
