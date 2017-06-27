@@ -67,7 +67,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 20 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 15 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
@@ -408,7 +408,7 @@ void setup() {
   buttonFlag = false;
   screenOn = true; // set flag true to show screen is on
   // Take an initial set of readings for display
-  read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
+  read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
 
   // Cycle briefly until we reach an even 10 sec value, so that the
   // data collection loop will start on a nice even time stamp. 
@@ -573,7 +573,7 @@ void loop() {
           // If the onboard screen is currently on, or it's time to
           // write samples to the SD card, then
           // take a set of samples from the 16 hall effect sensors
-          read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
+          read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
          }
       }
       if (saveData && writeData){
@@ -596,7 +596,10 @@ void loop() {
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
-        delay(5);          
+        delay(10); 
+        // The delay above is necessary to give the shift register time
+        // to reset and clear all channels
+        shiftReg.clear();          
       }       
       //-------------------------------------------------------------
       // OLED screen updating

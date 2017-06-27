@@ -132,7 +132,7 @@ byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
 unsigned long newMillis;  // counter for faster operations
 DateTime screenOnTime;  // Store the last time the OLED screen was switched on.
-byte screenTimeout = 20; // Seconds to wait before shutting off OLED screen
+byte screenTimeout = 5; // Seconds to wait before shutting off OLED screen
 byte screenNum = 0; // keep track of which set of channels to show onscreen
 bool screenOn = true; // turn OLEDs on or off
 //******************
@@ -373,8 +373,7 @@ void setup() {
   buttonFlag = false;
   screenOn = true; // set flag true to show screen is on
   // Take an initial set of readings for display
-  read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
-  shiftReg.clear(); 
+  read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
 
   // Cycle briefly until we reach an even 10 sec value, so that the
   // data collection loop will start on a nice even time stamp. 
@@ -535,11 +534,11 @@ void loop() {
       }
 
       if (takeSamples){
+        if (screenOn | writeData){
           // A new second has turned over, take a set of samples from 
           // the 16 hall effect sensors
-          read16Hall(ANALOG_IN, hallAverages, shiftReg, mux);
-          // Put all hall sensors to sleep by writing 0's to all channels
-          shiftReg.clear();
+          read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
+        }
       }
       if (saveData && writeData){
         // If saveData is true, and it's time to writeData, then do this:
@@ -555,13 +554,17 @@ void loop() {
         }
         // Call the writeToSD function to output the data array contents
         // to the SD card
-//          bitSet(PIND, 3); // toggle on
+          bitSet(PIND, 3); // toggle on
         writeToSD(newtime);
-//          bitSet(PIND, 3); // toggle off
+          bitSet(PIND, 3); // toggle off
+        
         writeData = false; // reset flag
-        printTimeSerial(newtime);
-        Serial.println();
-        delay(5);          
+//        printTimeSerial(newtime);
+//        Serial.println();
+        delay(10);  
+        shiftReg.clear();
+//        delay(5);        
+//        shiftReg.clear();        
       }       
       //-------------------------------------------------------------
       // OLED screen updating
