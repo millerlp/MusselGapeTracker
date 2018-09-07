@@ -1,0 +1,10 @@
+ * The bootloader installed on the MusselGapeTracker board should be Optiboot v6.2 or later which can be accessed by adding Optiboot to the Arduino software Boards Manager.
+ * Go to https://github.com/Optiboot/optiboot 
+ * See their instructions on that page "To install into the Arduino software"
+ * Specifically, follow their link to https://github.com/Optiboot/optiboot/releases  and copy the link address to the .json file under the Optiboot v6.2 release called  "package_optiboot_optiboot-additional_index.json"
+ * (You could test a more recent release versions like 7.0, but I haven't tested these)
+ * After installation of Optiboot in Arduino, choose the entry Optiboot on 32-pin cpus. 
+ * After choosing that, you will get new options in the Tools menu to 
+ * choose Processor: ATmega328p, and CPU Speed: 8MHz (int).
+ * Then run Burn Bootloader with a programmer attached to the 
+ * MusselGapeTracker board's ICSP 3x2 header. 

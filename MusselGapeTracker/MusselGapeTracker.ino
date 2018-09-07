@@ -1,6 +1,21 @@
 /*
  * MusselGapeTracker.ino
  * 
+ * The bootloader installed on the board should be Optiboot v6.2 or later
+ * which can be accessed by adding Optiboot to the Boards Manager.
+ * https://github.com/Optiboot/optiboot 
+ * See their instructions on that page "To install into the Arduino software"
+ * Specifically, follow their link to https://github.com/Optiboot/optiboot/releases
+ * and copy the link address to the .json file under the Optiboot v6.2 release called 
+ * "package_optiboot_optiboot-additional_index.json"
+ * (you could test a more recent release versions like 7.0, but I haven't tested these)
+ * After installation of Optiboot in Arduino, 
+ * choose the entry Optiboot on 32-pin cpus. 
+ * After choosing that, you will get new options in the Tools menu to 
+ * choose Processor: ATmega328p, and CPU Speed: 8MHz (int).
+ * Then run Burn Bootloader with a programmer attached to the 
+ * board's ICSP 3x2 header. 
+ * 
  * Available user options:
  * Change the value of SAVE_INTERVAL below to set how many seconds between
  * values being written to the SD card. Common values would be 1, 5, or 10.
@@ -45,13 +60,7 @@
  * it may be necessary to press Reset briefly while the upload is starting. 
  * 
  * 
- * The bootloader installed on the board should be Optiboot v6.2 or later
- * which can be accessed by adding Optiboot to the Boards Manager.
- * https://github.com/Optiboot/optiboot 
- * After installation of Optiboot in Arduino, 
- * choose the entry Optiboot on 32-pin cpus, 8MHz (int), ATmega328p
- * and then run Burn Bootloader with a programmer attached to the 
- * board's ICSP 3x2 header. 
+
  * 
  */
 
