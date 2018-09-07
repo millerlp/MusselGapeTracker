@@ -1,7 +1,7 @@
 /*
  *  Blink.ino
  *  
- *  Simple blink test for the RevA hardware
+ *  Simple blink test for RevC hardware
  */
 
 
