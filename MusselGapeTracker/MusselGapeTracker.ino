@@ -206,7 +206,7 @@ void setup() {
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
   // Set button2 as an input
-  pinMode(BUTTON2, OUTPUT);
+  pinMode(BUTTON2, INPUT_PULLUP);
   digitalWrite(BUTTON2, LOW);
   // Set up the LEDs as output
   pinMode(REDLED,OUTPUT);
