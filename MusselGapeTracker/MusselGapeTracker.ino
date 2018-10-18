@@ -1,5 +1,5 @@
 /*
- * MusselGapeTracker.ino
+ * MusselGapeTracker.ino - RevC updated 2018-10-18
  * 
  * The bootloader installed on the board should be Optiboot v6.2 or later
  * which can be accessed by adding Optiboot to the Boards Manager.
@@ -109,16 +109,16 @@ volatile debounceState_t debounceState;
 #define GRNLED A3   // Green LED pin
 #define BUTTON1 2     // BUTTON1 on INT0, pin PD2
 #define BUTTON2 3     // BUTTON2 on INT1, pin PD3
-#define CS_SD 10    // Chip select for SD card (if used)
-#define CS_SHIFT_REG A2 // Chip select for shift registers
-#define SHIFT_CLEAR A1  // Clear (erase) line for shift registers
-#define ANALOG_IN A0  // Hall effect analog input from multiplexer
+#define CS_SD 10    // Chip select for SD card, pin PB2
+#define CS_SHIFT_REG A2 // Chip select for shift registers, pin PC2
+#define SHIFT_CLEAR A1  // Clear (erase) line for shift registers, pin PC1
+#define ANALOG_IN A7  // Hall effect analog input from multiplexer, pin ADC7
 
-#define MUX_S0  9   // Multiplexer channel select line
-#define MUX_S1  5   // Multiplexer channel select line
-#define MUX_S2  6   // Multiplexer channel select line
-#define MUX_S3  7   // Multiplexer channel select line
-#define MUX_EN  8   // Multiplexer enable line
+#define MUX_S0  9   // Multiplexer channel select line, pin PB1
+#define MUX_S1  5   // Multiplexer channel select line, pin PD5
+#define MUX_S2  6   // Multiplexer channel select line, pin PD6
+#define MUX_S3  7   // Multiplexer channel select line, pin PD7
+#define MUX_EN  8   // Multiplexer enable line, pin PB0
 
 
 unsigned int hallAverages[16]; // array to hold each second's sample averages
