@@ -599,9 +599,9 @@ void loop() {
         }
         // Call the writeToSD function to output the data array contents
         // to the SD card
-          bitSet(PIND, 3);  // toggle on
+//          bitSet(PIND, 3);  // toggle on
         writeToSD(newtime);
-          bitSet(PIND, 3);  // toggle off
+//          bitSet(PIND, 3);  // toggle off
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
