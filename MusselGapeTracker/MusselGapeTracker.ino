@@ -768,7 +768,7 @@ void loop() {
       // We have arrived at this state because the user held button1 down
       // for the specified amount of time (see the debounce cases earlier)
       // so we now allow the user to enter additional button presses to 
-      // choose which accelerometer they want to calibrate. 
+      // choose which Hall effect sensor they want to calibrate. 
       
       // Read a time value
       calibEnterTime = rtc.now();
@@ -863,11 +863,11 @@ void loop() {
       // Show selected channel Hall effect values on screen
       newMillis = millis(); // get current millis value
       // If 10 or more milliseconds have elapsed, take a new
-      // reading from the accel/compass
+      // reading from the Hall effect sensor
       if (newMillis >= prevMillis + 200) {
         prevMillis = newMillis; // update millis
         
-        // Choose which accel to sample based on pressCount value
+        // Choose which channel to sample based on pressCount value
         shiftReg.shiftChannelSet(pressCount);
         mux.muxChannelSet(pressCount);
         unsigned int newReading = readHall(ANALOG_IN);
