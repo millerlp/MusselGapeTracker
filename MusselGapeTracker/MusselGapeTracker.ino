@@ -862,7 +862,7 @@ void loop() {
     case STATE_CALIB_ACTIVE:
       // Show selected channel Hall effect values on screen
       newMillis = millis(); // get current millis value
-      // If 10 or more milliseconds have elapsed, take a new
+      // If 200 or more milliseconds have elapsed, take a new
       // reading from the Hall effect sensor
       if (newMillis >= prevMillis + 200) {
         prevMillis = newMillis; // update millis
