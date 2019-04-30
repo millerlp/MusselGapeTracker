@@ -15,6 +15,8 @@
  * choose Processor: ATmega328p, and CPU Speed: 8MHz (int).
  * Then run Burn Bootloader with a programmer attached to the 
  * board's ICSP 3x2 header. 
+ * Use those same settings (Optiboot, 32-pin cpus, ATmega328p, 8MHz (int)
+ * when compiling and uploading this program as well. 
  * 
  * Available user options:
  * Change the value of SAVE_INTERVAL below to set how many seconds between
@@ -868,9 +870,12 @@ void loop() {
         prevMillis = newMillis; // update millis
         
         // Choose which channel to sample based on pressCount value
+        digitalWrite(MUX_EN, LOW); // enable multiplexer
+        delayMicroseconds(2);
         shiftReg.shiftChannelSet(pressCount);
         mux.muxChannelSet(pressCount);
         unsigned int newReading = readHall(ANALOG_IN);
+        digitalWrite(MUX_EN, HIGH); // disable multiplexer
         oled1.setCursor(60,0);
         oled1.clear(60,128,0,1); // Only clear the portion of the line with the value
         oled1.print(newReading);
@@ -985,5 +990,3 @@ int freeRam () {
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
-
-
