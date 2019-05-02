@@ -1,17 +1,14 @@
 /* Hall_tester_MusselGapeTracker_RevC
  *  Luke Miller 2019
  *  
- *  TODO: Update instructions
- *  TODO: Show output filename somewhere on the screen
- *  
  *  Meant to work with a MusselGapeTracker Rev C board. Connect
  *  to a KD Scientific Model 200 syringe dispenser to move the 
- *  dispenser back and forth known distances, causing the 
+ *  dispenser a known distances, causing the 
  *  magnetic field of a Hall effect sensor to change in response.
  *  If you don't have a Model 200 syringe dispenser sitting around,
  *  don't bother running this program.
  *  
- *  Connect Syringe Trigger pin to MusselTracker SCL line (PD3)
+ *  Connect Syringe Trigger pin to MusselTracker SCL line (PD3, Button2 line)
  *  Connect Syringe GND to MusselTracker GND
  *  
  *  
@@ -32,27 +29,42 @@
  *  syringe pump can be set to 10ml/m to move at a reasonable pace.
  *  
  *  Usage:
- *  Place Hall sensor on syringe pump fixed block. Place magnet on syringe
- *  pump traveling block. Fire up Serial Monitor to show Hall reading
- *  Release traveling block feed, slide magnet near Hall sensor. Engage
- *  traveling block feed. 
- *  Make sure Hall reading is more than ~ 12, as this is the saturated 
+ *  1. Choose which Hall channel you want to calibrate (0-15). Press Button 1
+ *  briefly to cycle through the channels. A live update of the current 
+ *  channel's analog reading will be shown. 
+ *  2. Place Hall sensor on syringe pump fixed block. Place magnet on syringe
+ *  pump traveling block (carriage). Fire up Serial Monitor to show Hall reading
+ *  3. Release carriage feed, slide magnet near Hall sensor. 
+ *  4. Make sure Hall reading is more than ~ 12, as this is the saturated 
  *  reading. If Hall reading is > 500, turn the magnet over (or make 
  *  sure the bottom of the sensor board is oriented towards the magnet).
  *  For consistency's sake we try to set these up so that when the magnet
  *  is near the board the reading is near zero, and as the magnet moves
  *  further from the board the signal goes up towards 500.
- *  Press Button1 on the MusselTracker board to start the syringe pump 
- *  moving. A set of 4 Hall readings will be taken at each distance,
- *  starting from a distance = 0.0 for the initial reading. Every 
- *  subsequent distance is relative to that initial starting point. 
- *  When the last movement is made, the Serial Monitor will return to 
- *  just outputing the current Hall reading.
- *  You may now release the traveling block and reposition the magnet
+ *  5. Engage carriage feed. 
+ *  6. Press and hold Button 1 for at least 5 seconds, then release. This
+ *  will immediately start the first trial.
+ *  7.  A  Hall reading will be taken at each distance (actually the average
+ *  of 4 readings), starting from a distance = 0.0 for the initial reading. Every 
+ *  subsequent distance is relative to that initial starting point (and is 
+ *  assumed to be happening in 0.3175mm steps if the syringe pump is
+ *  correctly set to 0.1mL steps,  Air-Tite All Pls
+ *  syringe, 20cc volume, 20.0mm diameter. **Any different settings on the 
+ *  syringe pump will result in an incorrect distance being recorded.**
+ *  8. When the last movement is made, the Serial Monitor or OLED screeen 
+ *  will return to just outputing the current Hall reading. The filename
+ *  that is being written to for this session will be displayed.
+ *  9. You may now release the traveling block and reposition the magnet
  *  near the Hall sensor to run another trial. I recommend starting 
  *  the magnet/Hall combination in several positions and angles to 
  *  make sure you span the range of possible starting positions and
  *  signal curves. 
+ *  10. Press Button 1 briefly to start the next trial, which will be
+ *  saved to the same output file.
+ *  11. Repeat steps 7-10 to carry out multiple trials. 
+ *  12. When finished with trials for this Hall effect channel, press 
+ *  the RESET button on the circuit board to restart the program and
+ *  choose a new Hall channel. 
  */
 
 
@@ -334,8 +346,8 @@ void setup() {
   initFileName(newtime);
   oled1.clear();
   oled1.home();
-//  oled1.set1X();
-//  oled1.println(F("Press button 1"));
+  oled1.set1X();
+  oled1.println(F("Starting trial"));
 //  oled1.println(F("to start trial"));
   oled1.set2X();
 
@@ -355,8 +367,8 @@ void loop() {
     Serial.print(F("Value: "));
     Serial.println(newReading);
     
-    oled1.setCursor(0,2);
-    oled1.clear(0,128,2,3);
+    oled1.setCursor(0,3);
+    oled1.clear(0,128,3,4);
     oled1.print(F("Ch"));
     oled1.print(channel);
     oled1.print(F(": "));
@@ -367,8 +379,21 @@ void loop() {
     buttonFlag = false; // reset buttonFlag
     distanceVal = 0.0; // initialize distance
     ++trialNum; // increment trial number
-    
-    while (distanceVal < 12.5){ 
+    oled1.set1X();
+    oled1.clear(0,128,0,2);
+    oled1.home();
+    oled1.print(F("Running Trial "));
+    oled1.println(trialNum);
+    oled1.set2X();
+    while (distanceVal < moveLimit){ 
+
+      // Take a reading 
+      digitalWrite(MUX_EN, LOW); // enable multiplexer
+      delayMicroseconds(2);
+      shiftReg.shiftChannelSet(channel);
+      mux.muxChannelSet(channel);
+      newReading = readHall(ANALOG_IN);
+      digitalWrite(MUX_EN, HIGH); // disable multiplexer
 
       Serial.print(F("Hall "));
       Serial.print(channel);
@@ -377,29 +402,18 @@ void loop() {
       Serial.print(F("\t Distance "));
       Serial.print(distanceVal,4);
       Serial.print(F(" mm, Value: "));
+      Serial.println(newReading);
       
-      oled1.setCursor(0,2);
-      oled1.clear(0,128,2,2);
+      oled1.setCursor(0,3);
+      oled1.clear(0,128,3,3);
       oled1.print(F("Ch"));
       oled1.print(channel);
       oled1.print(F(": "));
       oled1.println(newReading);
       oled1.set1X();
-      oled1.print(F("Trial "));
-      oled1.println(trialNum);
       oled1.print(F("Distance: "));
       oled1.println(distanceVal,4);
       oled1.set2X();
-      
-      // Take a reading 
-      digitalWrite(MUX_EN, LOW); // enable multiplexer
-      delayMicroseconds(2);
-      shiftReg.shiftChannelSet(channel);
-      mux.muxChannelSet(channel);
-      newReading = readHall(ANALOG_IN);
-      digitalWrite(MUX_EN, HIGH); // disable multiplexer
-      
-      Serial.println(newReading);
       
       // Write the reading to the output file
         // Reopen logfile. If opening fails, notify the user
@@ -408,7 +422,10 @@ void loop() {
           digitalWrite(ERRLED, HIGH); // turn on error LED
         }
       }
+      logfile.print(serialNumber);
+      logfile.print(F(","));
       logfile.print(channel);
+      logfile.print(F(","));
       logfile.print(trialNum);
       logfile.print(F(","));
       logfile.print(distanceVal,5);
@@ -426,12 +443,21 @@ void loop() {
     
     } // end of while loop 
     Serial.println(F("Finished"));
+    Serial.print(F("Current file: "));
+    Serial.println(filename);
     oled1.clear();
     oled1.home();
     oled1.set1X();
     oled1.println(F("Press button 1"));
-    oled1.println(F("to start trial"));
+    oled1.println(F("to start next trial"));
+    oled1.println(filename);
     oled1.set2X();
+    // Flash the green LED to notify the user we're done
+    for (int i; i < 5; i++){
+      digitalWrite(GREENLED, HIGH);
+      delay(10);
+      digitalWrite(GREENLED, LOW);
+    }
     // Reattach the interrupt to allow another trial on this same data file
     attachInterrupt(0, buttonFunc, LOW);
   } 
@@ -492,8 +518,8 @@ void initFileName(DateTime time1) {
   } // end of file-naming for loop
   //------------------------------------------------------------
 
-  // write a 2nd header line to the SD file
-  logfile.println(F("HallChannel,Trial,Distance.mm,Reading"));
+  // write a header line to the SD file
+  logfile.println(F("Serial,HallChannel,Trial,Distance.mm,Reading"));
   // Update the file's creation date, modify date, and access date.
   logfile.timestamp(T_CREATE, time1.year(), time1.month(), time1.day(), 
       time1.hour(), time1.minute(), time1.second());
