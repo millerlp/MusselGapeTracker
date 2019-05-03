@@ -457,6 +457,7 @@ void loop() {
       digitalWrite(GREENLED, HIGH);
       delay(10);
       digitalWrite(GREENLED, LOW);
+      delay(100);
     }
     // Reattach the interrupt to allow another trial on this same data file
     attachInterrupt(0, buttonFunc, LOW);
