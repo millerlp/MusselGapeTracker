@@ -470,12 +470,12 @@ void loop() {
 // The character array 'filename' was defined as a global array 
 // at the top of the sketch in the form "Hall00_CALIB_00_SN00.csv"
 void initFileName(DateTime time1) {
-  // Insert the Hall sensor channel number in positions 4-5
+  // Insert the Hall sensor channel number in positions 4-5 (count from 0)
   if (channel < 10){
     filename[5] = channel + '0';
   } else if (channel >= 10){
-    filename[4] = (channel % 10)/10 + '0';
-    filename[5] = channel % 10 + '0';
+    filename[4] = channel /10 + '0'; // 10's digit
+    filename[5] = channel % 10 + '0'; // 1's digit
   }
 
   // If there is a valid serialnumber, insert it into 
