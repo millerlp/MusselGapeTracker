@@ -453,12 +453,12 @@ void loop() {
     oled1.println(filename);
     oled1.set2X();
     // Flash the green LED to notify the user we're done
-    for (int i; i < 5; i++){
-      digitalWrite(GREENLED, HIGH);
-      delay(10);
-      digitalWrite(GREENLED, LOW);
-      delay(100);
-    }
+//    for (int i; i < 5; i++){
+//      digitalWrite(GREENLED, HIGH);
+//      delay(10);
+//      digitalWrite(GREENLED, LOW);
+//      delay(100);
+//    }
     // Reattach the interrupt to allow another trial on this same data file
     attachInterrupt(0, buttonFunc, LOW);
   } 
