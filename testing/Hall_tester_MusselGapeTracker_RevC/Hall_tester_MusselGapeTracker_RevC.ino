@@ -384,6 +384,7 @@ void loop() {
     oled1.home();
     oled1.print(F("Running Trial "));
     oled1.println(trialNum);
+    oled1.println(filename);
     oled1.set2X();
     while (distanceVal < moveLimit){ 
 
