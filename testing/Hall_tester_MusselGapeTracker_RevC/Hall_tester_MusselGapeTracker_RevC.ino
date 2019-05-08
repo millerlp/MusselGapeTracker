@@ -393,6 +393,7 @@ void loop() {
       delayMicroseconds(2);
       shiftReg.shiftChannelSet(channel);
       mux.muxChannelSet(channel);
+      delay(10);
       newReading = readHall(ANALOG_IN);
       digitalWrite(MUX_EN, HIGH); // disable multiplexer
 
@@ -437,7 +438,7 @@ void loop() {
       // Actuate the Trigger pin to make the syringe dispenser
       // run
       digitalWrite(TRIGGER, LOW); // Transition High to Low to trigger movement
-      delay(2000); // Give dispenser time to move
+      delay(1200); // Give dispenser time to move
       digitalWrite(TRIGGER, HIGH); // Reset Trigger line
       // Increment the distanceVal
       distanceVal = distanceVal + moveDist;  // units mm
