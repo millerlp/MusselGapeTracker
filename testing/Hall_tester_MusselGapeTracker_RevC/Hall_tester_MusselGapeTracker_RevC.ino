@@ -13,21 +13,15 @@
  *  
  *  
  *  
- *  Make sure the syringe dispenser is set to use Air-Tite All Pls
- *  syringe, 20cc volume, 20.0mm diameter. When you dispense
- *  0.2mL in this setting, you get 1 full rotation of the drive screw
+ *  Make sure the syringe pump is set as follows:
+ *  Diam: 50.00 mm
+ *  Vol: 0.623 ml
+ *  Direction: Withdraw
+ *  When you dispense 0.623mL in this setting, you get 1/2 of a full 
+ *  rotation of the drive screw.
  *  The drive screw is 40 teeth per inch, so one full rotation moves
- *  the carriage 1/40 of an inch, which is 0.025 inches = 0.635mm. 
- *  Thus, if set up as above, 
- *  one actuation of the Trigger pin will move the carriage 0.635mm. 
- *  Direction of travel needs to be set as Withdraw to move the carriage
- *  away from the Hall effect sensor. 
- *  *******NOTE*******************
- *  For real measurements, set the dispenser up to move 0.1mL (half rotation)
- *  which will move 0.3175mm linearly. This needs to be set on the 
- *  syringe dispenser itself in the Volume menu. The Rate value on the 
- *  syringe pump can be set to 10ml/m to move at a reasonable pace.
- *  
+ *  the carriage 1/40 of an inch, which is 0.025 inches = 0.635mm, and 
+ *  a half rotation = 0.3175 mm.
  *  Usage:
  *  1. Choose which Hall channel you want to calibrate (0-15). Press Button 1
  *  briefly to cycle through the channels. A live update of the current 
