@@ -115,6 +115,8 @@ volatile debounceState_t debounceState;
 #define CS_SHIFT_REG A2 // Chip select for shift registers, pin PC2
 #define SHIFT_CLEAR A1  // Clear (erase) line for shift registers, pin PC1
 #define ANALOG_IN A7  // Hall effect analog input from multiplexer, pin ADC7
+#define BATT_MONITOR A6  // analog input channel to sense battery voltage
+#define BATT_MONITOR_EN A0 // digital output channel to turn on battery voltage check
 
 #define MUX_S0  9   // Multiplexer channel select line, pin PB1
 #define MUX_S1  5   // Multiplexer channel select line, pin PD5
@@ -194,6 +196,9 @@ bool screenOn = true; // turn OLEDs on or off
 // Create ShiftReg and Mux objects
 ShiftReg shiftReg;
 Mux mux;
+//*************Battery monitor********
+float dividerRatio = 2.5; // Ratio of voltage divider (15k + 10k) / 10k = 2.5
+float refVoltage = 3.205; // Voltage from voltage regulator running ATmega
 
 
 //********************************************************
@@ -210,6 +215,9 @@ void setup() {
   // Set button2 as an input
   pinMode(BUTTON2, INPUT_PULLUP);
   digitalWrite(BUTTON2, LOW);
+  pinMode(BATT_MONITOR, INPUT);
+  pinMode(BATT_MONITOR_EN, OUTPUT); 
+  digitalWrite(BATT_MONITOR_EN, LOW); // disable battery check initially
   // Set up the LEDs as output
   pinMode(REDLED,OUTPUT);
   digitalWrite(REDLED, LOW);
@@ -685,6 +693,11 @@ void loop() {
               oled1.println(filename); // show current filename
               oled1.println(F("Save interval (sec)"));
               oled1.println(SAVE_INTERVAL);
+              // Show current battery voltage
+              oled1.print(F("Battery: "));
+              // Calls readBatteryVoltage function in MusselGapeTrackerlib library
+              oled1.print(readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage),2);
+              oled1.println(F("V"));
               oled1.set2X();
               screenOn = true;
               screenUpdate = false;
@@ -704,7 +717,12 @@ void loop() {
               oled1.println(F("Writing to:"));
               oled1.println(filename);  // show current filename
               oled1.println(F("Save interval (sec)"));
-              oled1.println(SAVE_INTERVAL);
+              oled1.println(SAVE_INTERVAL); // show save interval, seconds
+              // Show current battery voltage
+              oled1.print(F("Battery: "));
+              // Calls readBatteryVoltage function in MusselGapeTrackerlib library
+              oled1.print(readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage),2);
+              oled1.println(F("V"));
               oled1.set2X();
               screenUpdate = false;
               screenChange = false;              
@@ -979,6 +997,8 @@ void writeToSD (DateTime timestamp) {
       timestamp.day(),timestamp.hour(),timestamp.minute(),timestamp.second());
   }
 }
+
+
 
 
 
