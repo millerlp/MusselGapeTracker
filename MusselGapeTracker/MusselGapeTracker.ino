@@ -1,14 +1,13 @@
 /*
- * MusselGapeTracker.ino - RevC updated 2019-04-30
+ * MusselGapeTracker.ino - RevC/D updated 2019-05-15
  * 
- * The bootloader installed on the board should be Optiboot v6.2 or later
+ * The bootloader installed on the board should be Optiboot v6.2, 7, 8 or later
  * which can be accessed by adding Optiboot to the Boards Manager.
  * https://github.com/Optiboot/optiboot 
  * See their instructions on that page "To install into the Arduino software"
  * Specifically, follow their link to https://github.com/Optiboot/optiboot/releases
  * and copy the link address to the .json file under the Optiboot v6.2 release called 
  * "package_optiboot_optiboot-additional_index.json"
- * (you could test a more recent release versions like 7.0, but I haven't tested these)
  * After installation of Optiboot in Arduino, 
  * choose the entry Optiboot on 32-pin cpus. 
  * After choosing that, you will get new options in the Tools menu to 
@@ -78,7 +77,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 15 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 25 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
@@ -198,8 +197,11 @@ ShiftReg shiftReg;
 Mux mux;
 //*************Battery monitor********
 float dividerRatio = 2.5; // Ratio of voltage divider (15k + 10k) / 10k = 2.5
-float refVoltage = 3.205; // Voltage from voltage regulator running ATmega
-
+// The refVoltage needs to be measured individually for each board (use a 
+// voltmeter and measure at the AREF and GND pins on the board). Enter the 
+// voltage value here. 
+float refVoltage = 3.37; // Voltage at AREF pin on ATmega microcontroller
+float batteryVolts = 0; // Estimated battery voltage returned from readBatteryVoltage function
 
 //********************************************************
 void setup() {
@@ -407,6 +409,9 @@ void setup() {
     oled1.println(filename);
     oled1.println(F("Save interval (sec):"));
     oled1.println(SAVE_INTERVAL);
+    oled1.print(F("Battery: "));
+    oled1.print(readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage),2);
+    oled1.println(F("V"));
     delay(1000);
   } else {
     // if saveData is false
@@ -502,6 +507,7 @@ void loop() {
         
         if (checkTime.unixtime() < (buttonTime.unixtime() + mediumPressTime)) {
           Serial.println(F("Short press registered"));
+          delay(5);
           // User held button briefly, treat as a normal
           // button press, which will be handled differently
           // depending on which mainState the program is in.
@@ -593,6 +599,7 @@ void loop() {
           // write samples to the SD card, then
           // take a set of samples from the 16 hall effect sensors
           read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
+          batteryVolts = readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage);
          }
       }
       if (saveData && writeData){
@@ -989,6 +996,8 @@ void writeToSD (DateTime timestamp) {
     logfile.print(F(","));
     logfile.print(hallAverages[i]); 
   }
+  logfile.print(F(","));
+  logfile.print(batteryVolts,2);
   logfile.println();
   // logfile.close(); // force the buffer to empty
 
