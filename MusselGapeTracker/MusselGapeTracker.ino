@@ -77,7 +77,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 25 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 55 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
@@ -705,6 +705,15 @@ void loop() {
               // Calls readBatteryVoltage function in MusselGapeTrackerlib library
               oled1.print(readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage),2);
               oled1.println(F("V"));
+              newtime.toString(buf, 20); 
+              // Now extract the time by making another character pointer that
+              // is advanced 10 places into buf to skip over the date. 
+              char *timebuf = buf + 10;
+              for (int i = 0; i<11; i++){
+                oled1.print(buf[i]);
+              }
+              oled1.println();
+              oled1.println(timebuf);
               oled1.set2X();
               screenOn = true;
               screenUpdate = false;
@@ -730,6 +739,15 @@ void loop() {
               // Calls readBatteryVoltage function in MusselGapeTrackerlib library
               oled1.print(readBatteryVoltage(BATT_MONITOR_EN,BATT_MONITOR,dividerRatio,refVoltage),2);
               oled1.println(F("V"));
+              newtime.toString(buf, 20); 
+              // Now extract the time by making another character pointer that
+              // is advanced 10 places into buf to skip over the date. 
+              char *timebuf = buf + 10;
+              for (int i = 0; i<11; i++){
+                oled1.print(buf[i]);
+              }
+              oled1.println();
+              oled1.println(timebuf);
               oled1.set2X();
               screenUpdate = false;
               screenChange = false;              
