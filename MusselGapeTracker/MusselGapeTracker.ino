@@ -77,7 +77,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 55 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 120 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
