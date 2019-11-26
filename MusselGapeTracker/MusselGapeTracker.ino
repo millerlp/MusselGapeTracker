@@ -182,7 +182,7 @@ DateTime chooseTime; // hold the time stamp when a waiting period starts
 DateTime calibEnterTime; // hold the time stamp when calibration mode is entered
 volatile unsigned long buttonTime1; // hold the initial button press millis() value
 byte debounceTime = 20; // milliseconds to wait for debounce
-byte mediumPressTime = 2; // seconds to hold button1 to register a medium press
+byte mediumPressTime = 1; // seconds to hold button1 to register a medium press
 byte longPressTime = 5; // seconds to hold button1 to register a long press
 byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
@@ -215,8 +215,9 @@ void setup() {
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
   // Set button2 as an input
-  pinMode(BUTTON2, INPUT_PULLUP);
-  digitalWrite(BUTTON2, LOW);
+//  pinMode(BUTTON2, INPUT_PULLUP);
+//  digitalWrite(BUTTON2, LOW);
+  pinMode(BUTTON2, OUTPUT); // For o-scope monitoring of sd card writes
   pinMode(BATT_MONITOR, INPUT);
   pinMode(BATT_MONITOR_EN, OUTPUT); 
   digitalWrite(BATT_MONITOR_EN, LOW); // disable battery check initially
@@ -228,10 +229,10 @@ void setup() {
   // Notify the user that a reboot just happened by flashing the 
   // green LED 5 times. 
   for (byte i = 0; i < 5; i++){
-    digitalWrite(GRNLED, HIGH);
-    delay(50);
-    digitalWrite(GRNLED, LOW);
-    delay(50);
+    digitalWrite(REDLED, HIGH);
+    delay(250);
+    digitalWrite(REDLED, LOW);
+    delay(250);
   }
   Serial.begin(57600);
   Serial.println(F("Hello"));  
@@ -352,7 +353,7 @@ void setup() {
   // Initialize the SD card object
   // Try SPI_FULL_SPEED, or SPI_HALF_SPEED if full speed produces
   // errors on a breadboard setup. 
-  if (!sd.begin(CS_SD, SPI_FULL_SPEED)) {
+  if (!sd.begin(CS_SD, SPI_HALF_SPEED)) {
   // If the above statement returns FALSE after trying to 
   // initialize the card, enter into this section and
   // hold in an infinite loop.
@@ -616,9 +617,11 @@ void loop() {
         }
         // Call the writeToSD function to output the data array contents
         // to the SD card
-//          bitSet(PIND, 3);  // toggle on
+        Serial.print(F("sd write  ")); // troubleshooting
+        delay(10);
+          bitSet(PIND, 3);  // toggle on
         writeToSD(newtime);
-//          bitSet(PIND, 3);  // toggle off
+          bitSet(PIND, 3);  // toggle off
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
