@@ -182,7 +182,7 @@ DateTime chooseTime; // hold the time stamp when a waiting period starts
 DateTime calibEnterTime; // hold the time stamp when calibration mode is entered
 volatile unsigned long buttonTime1; // hold the initial button press millis() value
 byte debounceTime = 20; // milliseconds to wait for debounce
-byte mediumPressTime = 2; // seconds to hold button1 to register a medium press
+byte mediumPressTime = 1; // seconds to hold button1 to register a medium press
 byte longPressTime = 5; // seconds to hold button1 to register a long press
 byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
@@ -226,11 +226,11 @@ void setup() {
   pinMode(GRNLED,OUTPUT);
   digitalWrite(GRNLED, LOW);
   // Notify the user that a reboot just happened by flashing the 
-  // green LED 5 times. 
+  // red LED 5 times. 
   for (byte i = 0; i < 5; i++){
-    digitalWrite(GRNLED, HIGH);
+    digitalWrite(REDLED, HIGH);
     delay(50);
-    digitalWrite(GRNLED, LOW);
+    digitalWrite(REDLED, LOW);
     delay(50);
   }
   Serial.begin(57600);
@@ -297,7 +297,7 @@ void setup() {
     oled1.print(F("PWR RESET"));
     Serial.println(F("Power-on reset"));
   }
-  delay(1000);
+  delay(3000);
 
   //***********************************************
   // Check that real time clock has a reasonable time value
@@ -441,7 +441,7 @@ void setup() {
     newtime = rtc.now();
   }
 
-  wdt_enable(WDTO_4S); // Enable 4 second watchdog timer timeout
+  wdt_enable(WDTO_8S); // Enable 8 second watchdog timer timeout
   oldtime = newtime; // store the current time value
   screenOnTime = newtime; // store when the screen was turned on
   screenNum = 0; // start on first set of channels
@@ -621,8 +621,10 @@ void loop() {
 //          bitSet(PIND, 3);  // toggle off
         writeData = false; // reset flag
         printTimeSerial(newtime);
+        digitalWrite(GRNLED, HIGH);
         Serial.println();
         delay(10); 
+        digitalWrite(GRNLED, LOW);
         // The delay above is necessary to give the shift register time
         // to reset and clear all channels
         shiftReg.clear();          
@@ -635,7 +637,7 @@ void loop() {
         // state (buttonFlag). If it has, update OLED displays
         if (!buttonFlag) {
           // If the buttonFlag is false, button has not been pressed.
-          // So check whether the screen is on, and shut it off it 
+          // So check whether the screen is on, and shut it off if it 
           // has timed out. Otherwise update the hall data. 
           if (!screenOn) {
             // If screen is off, do nothing here
