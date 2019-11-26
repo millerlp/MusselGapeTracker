@@ -211,7 +211,7 @@ void setup() {
   // If only a brownout is detected, this function will put the board
   // into a permanent sleep that can only be reset with the reset 
   // button or a complete power-down.
-//  checkMCUSR(mcusr, REDLED);  // In the MusselTrackerlib library
+  checkMCUSR(mcusr, REDLED);  // In the MusselTrackerlib library
   // Set BUTTON1 as an input
   pinMode(BUTTON1, INPUT_PULLUP);
   // Set button2 as an input
@@ -229,9 +229,9 @@ void setup() {
   // red LED 5 times. 
   for (byte i = 0; i < 5; i++){
     digitalWrite(REDLED, HIGH);
-    delay(250);
+    delay(50);
     digitalWrite(REDLED, LOW);
-    delay(250);
+    delay(50);
   }
   Serial.begin(57600);
   Serial.println(F("Hello"));  
@@ -302,7 +302,7 @@ void setup() {
   //***********************************************
   // Check that real time clock has a reasonable time value
   bool stallFlag = true; // Used in error handling below
-  if ( (newtime.year() < 2019) | (newtime.year() > 2035) ) {
+  if ( (newtime.year() < 2017) | (newtime.year() > 2035) ) {
     // There is an error with the clock, halt everything
     oled1.home();
     oled1.clear();
