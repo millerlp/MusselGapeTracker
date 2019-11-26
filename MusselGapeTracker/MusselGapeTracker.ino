@@ -77,9 +77,9 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 30 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 120 // Seconds before OLED display shuts off
 //*********************************************************************
-#define SPS 16 // Sleeps per second. Leave this set at 4
+#define SPS 4 // Sleeps per second. Leave this set at 4
 
 // ***** TYPE DEFINITIONS *****
 typedef enum STATE
@@ -474,7 +474,7 @@ void loop() {
       // DEBOUNCE_STATE_CHECK by the buttonFunc interrupt,
       // check if the button is still pressed
       if (digitalRead(BUTTON1) == LOW) {
-        if (millis() > (buttonTime1 + debounceTime) ) {
+        if (millis() > buttonTime1 + debounceTime) {
           // If the button has been held long enough to 
           // be a legit button press, switch to 
           // DEBOUNCE_STATE_TIME to keep track of how long 
