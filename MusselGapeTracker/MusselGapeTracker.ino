@@ -218,6 +218,7 @@ void setup() {
 //  pinMode(BUTTON2, INPUT_PULLUP);
 //  digitalWrite(BUTTON2, LOW);
   pinMode(BUTTON2, OUTPUT); // For o-scope monitoring of sd card writes
+  digitalWrite(BUTTON2, LOW);
   pinMode(BATT_MONITOR, INPUT);
   pinMode(BATT_MONITOR_EN, OUTPUT); 
   digitalWrite(BATT_MONITOR_EN, LOW); // disable battery check initially
@@ -625,7 +626,9 @@ void loop() {
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
+        digitalWrite(GRNLED, HIGH);
         delay(10); 
+        digitalWrite(GRNLED, LOW);
         // The delay above is necessary to give the shift register time
         // to reset and clear all channels
         shiftReg.clear();          
