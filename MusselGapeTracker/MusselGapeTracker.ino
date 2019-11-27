@@ -253,15 +253,16 @@ void setup() {
 
   
   //----------------------------------
+
+  // Initialize the real time clock DS3231M
+  Wire.begin(); // Start the I2C library with default options
+  Wire.setClock(400000L); // Set speed to 400kHz
   // Start up the oled displays
   oled1.begin(&Adafruit128x64, I2C_ADDRESS1);
-  oled1.set400kHz();  
   oled1.setFont(Adafruit5x7);    
   oled1.clear(); 
   oled1.home();
   oled1.set2X();
-  // Initialize the real time clock DS3231M
-  Wire.begin(); // Start the I2C library with default options
   rtc.begin();  // Start the rtc object with default options
   newtime = rtc.now(); // read a time from the real time clock
   newtime.toString(buf, 20); 
@@ -304,7 +305,7 @@ void setup() {
   //***********************************************
   // Check that real time clock has a reasonable time value
   bool stallFlag = true; // Used in error handling below
-  if ( (newtime.year() < 2017) | (newtime.year() > 2035) ) {
+  if ( (newtime.year() < 2019) | (newtime.year() > 2035) ) {
     // There is an error with the clock, halt everything
     oled1.home();
     oled1.clear();
@@ -354,7 +355,7 @@ void setup() {
   // Initialize the SD card object
   // Try SPI_FULL_SPEED, or SPI_HALF_SPEED if full speed produces
   // errors on a breadboard setup. 
-  if (!sd.begin(CS_SD, SPI_HALF_SPEED)) {
+  if (!sd.begin(CS_SD, SPI_FULL_SPEED)) {
   // If the above statement returns FALSE after trying to 
   // initialize the card, enter into this section and
   // hold in an infinite loop.
