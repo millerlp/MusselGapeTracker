@@ -182,8 +182,8 @@ DateTime chooseTime; // hold the time stamp when a waiting period starts
 DateTime calibEnterTime; // hold the time stamp when calibration mode is entered
 volatile unsigned long buttonTime1; // hold the initial button press millis() value
 byte debounceTime = 20; // milliseconds to wait for debounce
-byte mediumPressTime = 1; // seconds to hold button1 to register a medium press
-byte longPressTime = 5; // seconds to hold button1 to register a long press
+byte mediumPressTime = 2; // seconds to hold button1 to register a medium press
+byte longPressTime = 7; // seconds to hold button1 to register a long press
 byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
 unsigned long newMillis;  // counter for faster operations
@@ -525,6 +525,15 @@ void loop() {
           // Set state to STATE_ENTER_CALIB
           mainState = STATE_ENTER_CALIB;
           // Update OLEDs to prompt user
+          if (!screenOn){         // If screen is not currently on...
+               // Manual startup of SSD1306 oled display driver
+              Wire.beginTransmission(0x3C); // oled1 display address
+              Wire.write(0x80); // oled set to Command mode (0x80) instead of data mode (0x40)
+              Wire.write(0xAF); // oled command 0xAF should power back up
+              Wire.endTransmission(); // stop transmitting            
+              delay(50); // give display time to fire back up to avoid damaging it.
+              screenOn = true; // Update flag
+          }
           oled1.home();
           oled1.clear();
           oled1.println(F("Press"));
