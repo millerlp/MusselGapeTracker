@@ -628,11 +628,11 @@ void loop() {
         }
         // Call the writeToSD function to output the data array contents
         // to the SD card
-        Serial.print(F("sd write  ")); // troubleshooting
-        delay(10);
-          bitSet(PIND, 3);  // toggle on
+//        Serial.print(F("sd write  ")); // troubleshooting
+//        delay(10);
+//          bitSet(PIND, 3);  // toggle on, troubleshooting
         writeToSD(newtime);
-          bitSet(PIND, 3);  // toggle off
+//          bitSet(PIND, 3);  // toggle off, troubleshooting
         writeData = false; // reset flag
         printTimeSerial(newtime);
         Serial.println();
