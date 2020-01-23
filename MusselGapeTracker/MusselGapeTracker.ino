@@ -77,7 +77,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 25 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 10 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
@@ -181,9 +181,9 @@ DateTime buttonTime; // hold the time since the button was pressed
 DateTime chooseTime; // hold the time stamp when a waiting period starts
 DateTime calibEnterTime; // hold the time stamp when calibration mode is entered
 volatile unsigned long buttonTime1; // hold the initial button press millis() value
-byte debounceTime = 20; // milliseconds to wait for debounce
+byte debounceTime = 10; // milliseconds to wait for debounce
 byte mediumPressTime = 2; // seconds to hold button1 to register a medium press
-byte longPressTime = 7; // seconds to hold button1 to register a long press
+byte longPressTime = 6; // seconds to hold button1 to register a long press
 byte pressCount = 0; // counter for number of button presses
 unsigned long prevMillis;  // counter for faster operations
 unsigned long newMillis;  // counter for faster operations
@@ -456,6 +456,9 @@ void setup() {
 void loop() {
   // Always start the loop by checking the time
   newtime = rtc.now(); // Grab the current time
+
+
+
   // Also reset the watchdog timer every time the loop loops
   wdt_reset(); 
 
@@ -476,6 +479,8 @@ void loop() {
       // If the debounce state has been set to 
       // DEBOUNCE_STATE_CHECK by the buttonFunc interrupt,
       // check if the button is still pressed
+      delay(5); // pause for debounce. This appears to fix the non-responsive issue I was having
+      
       if (digitalRead(BUTTON1) == LOW) {
         if (millis() > buttonTime1 + debounceTime) {
           // If the button has been held long enough to 
@@ -484,6 +489,7 @@ void loop() {
           // the button is held
           debounceState = DEBOUNCE_STATE_TIME;
           buttonTime = rtc.now();
+          digitalWrite(GRNLED, HIGH); // debug, turn on green led while button is held down
         } else {
           // If button is still pressed, but the debounce 
           // time hasn't elapsed, remain in this state
@@ -509,12 +515,11 @@ void loop() {
         DateTime checkTime = rtc.now(); // get the time
         
         if (checkTime.unixtime() < (buttonTime.unixtime() + mediumPressTime)) {
-          Serial.println(F("Short press registered"));
-          delay(5);
           // User held button briefly, treat as a normal
           // button press, which will be handled differently
           // depending on which mainState the program is in.
           buttonFlag = true;
+          digitalWrite(GRNLED, LOW); // debug
           
         } else if ( (checkTime.unixtime() > (buttonTime.unixtime() + mediumPressTime)) &
           (checkTime.unixtime() < (buttonTime.unixtime() + longPressTime)) ) {
