@@ -77,7 +77,7 @@
 //*********************************************************************
 #define SAVE_INTERVAL 5 // Seconds between saved samples (1, 5, 10)
 //*********************************************************************
-#define SCREEN_TIMEOUT 10 // Seconds before OLED display shuts off
+#define SCREEN_TIMEOUT 180 // Seconds before OLED display shuts off
 //*********************************************************************
 #define SPS 4 // Sleeps per second. Leave this set at 4
 
@@ -200,7 +200,7 @@ float dividerRatio = 2.5; // Ratio of voltage divider (15k + 10k) / 10k = 2.5
 // The refVoltage needs to be measured individually for each board (use a 
 // voltmeter and measure at the AREF and GND pins on the board). Enter the 
 // voltage value here. 
-float refVoltage = 3.37; // Voltage at AREF pin on ATmega microcontroller
+float refVoltage = 3.22; // Voltage at AREF pin on ATmega microcontroller
 float batteryVolts = 0; // Estimated battery voltage returned from readBatteryVoltage function
 
 //********************************************************
