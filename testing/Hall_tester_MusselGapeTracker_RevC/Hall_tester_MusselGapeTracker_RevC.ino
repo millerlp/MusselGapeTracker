@@ -1,5 +1,5 @@
 /* Hall_tester_MusselGapeTracker_RevC
- *  Luke Miller 2019
+ *  Luke Miller 2020
  *  
  *  Meant to work with a MusselGapeTracker Rev C board. Connect
  *  to a KD Scientific Model 200 syringe dispenser to move the 
@@ -8,7 +8,7 @@
  *  If you don't have a Model 200 syringe dispenser sitting around,
  *  don't bother running this program.
  *  
- *  Connect Syringe Trigger pin to MusselTracker SCL line (PD3, Button2 line)
+ *  Connect Syringe Trigger pin to MusselTracker pin PD3 (Button2 line)
  *  Connect Syringe GND to MusselTracker GND
  *  
  *  
@@ -42,8 +42,9 @@
  *  of 4 readings), starting from a distance = 0.0 for the initial reading. Every 
  *  subsequent distance is relative to that initial starting point (and is 
  *  assumed to be happening in 0.3175mm steps if the syringe pump is
- *  correctly set to 0.1mL steps,  Air-Tite All Pls
- *  syringe, 20cc volume, 20.0mm diameter. **Any different settings on the 
+ *  correctly set to 0.623mL volume,  50mm diameter syringe. I recommend 40ml/min
+ *  rate as a reasonable movement speed.
+ *  **Any different settings on the 
  *  syringe pump will result in an incorrect distance being recorded.**
  *  8. When the last movement is made, the Serial Monitor or OLED screeen 
  *  will return to just outputing the current Hall reading. The filename
