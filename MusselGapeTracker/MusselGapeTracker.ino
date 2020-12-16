@@ -1,5 +1,5 @@
 /*
- * MusselGapeTracker.ino - RevC/D updated 2019-05-15
+ * MusselGapeTracker.ino - RevC/D/E updated 2020-12-16
  * 
  * The bootloader installed on the board should be Optiboot v6.2, 7, 8 or later
  * which can be accessed by adding Optiboot to the Boards Manager.
