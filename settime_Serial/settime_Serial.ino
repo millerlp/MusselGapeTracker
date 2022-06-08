@@ -20,7 +20,11 @@
 	uploaded immediately, and the result will be printed to the
 	serial monitor. If you miss your time, you can enter a 
 	new date and time in the same format and try again without
-	needing to reboot. 
+	needing to reboot. Generally it is recommended to set
+	your time and date for the UTC time zone (a.k.a. Greenwich 
+	Mean Time) for consistency and to avoid nasty issues with 
+	time zone conversions and daylight savings time changes
+	during subsequent data analysis. 
 
 */
 
