@@ -1,5 +1,7 @@
 MusselGapeTracker
 -------------------
+![MusselGapeTracker circuit board](Images/MusselGapeTracker_board.png)
+
 Arduino-compatible code and designs for a multi-channel hall effect data logger. 
 
 The RevC hardware consists of a Atmega 328P microcontroller hooked to two SN74HC595 shift registers
