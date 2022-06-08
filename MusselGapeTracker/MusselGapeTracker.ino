@@ -65,7 +65,7 @@
  * 
  */
 
-#include "SdFat.h" // https://github.com/greiman/SdFat
+#include "SdFat.h" // https://github.com/greiman/SdFat // Tested with SdFat-beta-2.0.1a also
 #include <Wire.h>  // built in library, for I2C communications
 #include "SSD1306Ascii.h" // https://github.com/greiman/SSD1306Ascii
 #include "SSD1306AsciiWire.h" // https://github.com/greiman/SSD1306Ascii
