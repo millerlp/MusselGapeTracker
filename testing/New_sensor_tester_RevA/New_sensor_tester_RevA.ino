@@ -94,72 +94,31 @@ void setup() {
   oled1.home();
   oled1.set2X();
   oled1.print(F("Hello"));
-  // Initialize the real time clock DS3231M
-//  Wire.begin(); // Start the I2C library with default options
-//  rtc.begin();  // Start the rtc object with default options
-//  newtime = rtc.now(); // read a time from the real time clock
-//  newtime.toString(buf, 20); 
-  // Now extract the time by making another character pointer that
-  // is advanced 10 places into buf to skip over the date. 
-//  char *timebuf = buf + 10;
-//  for (int i = 0; i<11; i++){
-//    oled1.print(buf[i]);
-//  }
-//  oled1.println();
-//  oled1.println(timebuf);
-
-
-//  delay(2500);
+ 
   //***********************************************
-  // Check that real time clock has a reasonable time value
   bool stallFlag = true; // Used in error handling below
   
 
 //******************************************
-  // Have the user choose which channel to calibrate
+
   stallFlag = true;
-
-  // Update oled
-//  oled1.home();
-//  oled1.clear();
-//  oled1.set1X();
-//  oled1.println(F("Press button 1"));
-//  oled1.println(F("to choose channel"));
-//  oled1.println(F("Long press = start"));
-//  oled1.set2X();
-//  Serial.println(F("Press button 1 to choose channel"));
-//  Serial.println(F("Long press = start"));
-
   long cycleMillis = millis();
-  Serial.println(cycleMillis);
-  delay(250);
-  Serial.println(millis());
+  long LEDMillis = millis();
+  uint8_t LEDinterval = 200;
 
   while (stallFlag){
     // The program will just cycle here endlessly
     // Take Hall reading and update oled very 200 ms
     if (millis()-cycleMillis > 200){
       cycleMillis = millis(); // update
-      // Choose which channel to sample based on channel value
-      // and take a reading to display
+
       digitalWrite(MUX_EN, LOW); // enable multiplexer
       delayMicroseconds(2);
-      
-//      shiftReg.shiftChannelSet(channel);
-      
-      mux.muxChannelSet(channel);
+      mux.muxChannelSet(channel); // Should be 0 by default
       
       newReading = readHall(ANALOG_IN);
       digitalWrite(MUX_EN, HIGH); // disable multiplexer
 
-      if ( (newReading > 25 ) & (newReading < 800) ) {
-        digitalWrite(ERRLED, LOW); // Make sure error led is off
-        digitalWrite(GREENLED, !digitalRead(GREENLED));
-      } else {
-        digitalWrite(GREENLED, LOW); // Turn off green
-        digitalWrite(ERRLED, !digitalRead(ERRLED));
-      }
-  
       oled1.setCursor(0,3); // Column 0, row 3 (8-pixel rows)
       oled1.clear(0,128,3,4);
       oled1.print(F("Ch"));
@@ -171,7 +130,64 @@ void setup() {
       Serial.print(F(": "));
       Serial.println(newReading);
     }
+
+  if (millis()-LEDMillis > LEDinterval) {
+    LEDMillis = millis(); // update value
+    if ( (newReading > 490 ) & (newReading < 520) ) {
+      LEDinterval = 200;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( (newReading <= 490) & (newReading >= 300)) {
+      LEDinterval = 150;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( (newReading < 300) & (newReading >= 200) ) {
+      LEDinterval = 100;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ((newReading < 200) & (newReading >= 100)) {
+      LEDinterval = 50;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( (newReading < 100) & (newReading >= 30)) {
+      LEDinterval = 30;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( newReading < 30)  {
+      // Too low, turn on red LED
+      LEDinterval = 20;
+      digitalWrite(GREENLED, LOW); // Turn off green
+      digitalWrite(ERRLED, !digitalRead(ERRLED));
+    } else if ( (newReading >= 520) & (newReading <= 700)) {
+      LEDinterval = 150;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( (newReading > 700) & (newReading <= 800) ) {
+      LEDinterval = 100;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ((newReading > 800) & (newReading <= 900)) {
+      LEDinterval = 50;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( (newReading > 900) & (newReading <= 1000) ){
+      LEDinterval = 30;
+      digitalWrite(ERRLED, LOW); // Make sure error led is off
+      digitalWrite(GREENLED, !digitalRead(GREENLED));
+    } else if ( newReading > 1000)  {
+      // Too high, turn on red LED
+      LEDinterval = 20;
+      digitalWrite(GREENLED, LOW); // Turn off green
+      digitalWrite(ERRLED, !digitalRead(ERRLED));
+    } 
+    
+  }
+
+    
   } // end of while(stallFlag) loop
+
+
+  
 
 } // end of setup loop ************************************
 
