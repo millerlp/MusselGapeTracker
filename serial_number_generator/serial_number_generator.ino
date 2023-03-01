@@ -20,7 +20,7 @@
 
 
 // serial number to write to chip. Always increment this value and save this file
-char serialnumber[]="SN31";
+char serialnumber[]="SN37";
 
 void setup(){
 	Serial.begin(57600);
