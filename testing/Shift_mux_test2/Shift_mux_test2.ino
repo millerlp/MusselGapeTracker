@@ -21,7 +21,7 @@
 #define CS_SD 10    // Chip select for SD card (if used)
 #define CS_SHIFT_REG A2 // Chip select for shift registers
 #define SHIFT_CLEAR A1  // Clear (erase) line for shift registers
-#define ANALOG_IN A0  // Hall effect analog input from multiplexer
+#define ANALOG_IN A7  // Hall effect analog input from multiplexer
 
 #define MUX_S0  9   // Multiplexer channel select line
 #define MUX_S1  5   // Multiplexer channel select line
@@ -205,7 +205,3 @@ void loop() {
     HallChannel++; // increment for next loop
   }
 }
-
-
-
-
