@@ -52,7 +52,7 @@ ShiftReg shiftReg;
 Mux mux;
 unsigned int newReading = 0; // Reading from Hall effect sensor analog input
 unsigned int hallAverages[16]; // array to hold each second's sample averages
-float val1 = 2.0; // Reminder: on Teensy float and double are different sizes
+float val1 = 0.0; // Reminder: on Teensy float and double are different sizes
 
 // On AVR, a float is 4 bytes and double is 4 bytes
 void sendToPC(float* data1)
