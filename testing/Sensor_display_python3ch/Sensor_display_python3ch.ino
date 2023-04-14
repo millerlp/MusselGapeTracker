@@ -1,5 +1,5 @@
 /* Sensor_display_python
- *  A program to stream the reading from a Hall sensor over
+ *  A program to stream the reading from 3 Hall sensors over
  *  serial to a Python plotting program
  *  Luke Miller 2023
  *  Designed for Rev C/E GapeTracker boards
@@ -52,21 +52,26 @@ ShiftReg shiftReg;
 Mux mux;
 unsigned int newReading = 0; // Reading from Hall effect sensor analog input
 unsigned int hallAverages[16]; // array to hold each second's sample averages
-//float val1 = 0.0; // Reminder: on Teensy float and double are different sizes
-unsigned int val1 = 0;
 
-// On AVR, a float is 4 bytes and double is 4 bytes
-//void sendToPC(float* data1)
-//{
-//  byte* byteData1 = (byte*)(data1);
+unsigned int val1 = 0;
+unsigned int val2 = 0;
+unsigned int val3 = 0;
+
 //
-//  byte buf[4] = {byteData1[0], byteData1[1], byteData1[2], byteData1[3]};
-//  Serial.write(buf, 4);
+//void sendToPC(unsigned int* data1) {
+//  byte* byteData = (byte*)(data1);
+//  Serial.write(byteData,2);
 //}
 
-void sendToPC(unsigned int* data1) {
-  byte* byteData = (byte*)(data1);
-  Serial.write(byteData,2);
+void sendToPC(unsigned int* data1, unsigned int* data2, unsigned int* data3)
+{
+  byte* byteData1 = (byte*)(data1);
+  byte* byteData2 = (byte*)(data2);
+  byte* byteData3 = (byte*)(data3);
+  byte buf[6] = {byteData1[0], byteData1[1],
+                 byteData2[0], byteData2[1], 
+                 byteData3[0], byteData3[1]};
+  Serial.write(buf, 6);
 }
 
 
@@ -98,6 +103,16 @@ void setup() {
   oled1.home();
   oled1.set2X();
   oled1.print(F("Hello"));
+  delay(1000);
+  // Prep the display by printing channel numbers
+  oled1.clear();
+  oled1.home();
+  oled1.setCursor(0,0);
+  oled1.print(F("Ch0: "));
+  oled1.setCursor(0,3);
+  oled1.print(F("Ch1: "));
+  oled1.setCursor(0,6);
+  oled1.print(F("Ch2: "));
  
   //***********************************************
   bool stallFlag = true; // Used in error handling below
@@ -106,28 +121,36 @@ void setup() {
   
   while (stallFlag){
     // The program will just cycle here endlessly
-    // Take Hall reading and update oled very 100 ms
+    // Take Hall reading and update oled
     if (millis()-cycleMillis > 50){
       cycleMillis = millis(); // update
 
       read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
       newReading = hallAverages[channel];
 
-      oled1.setCursor(0,3); // Column 0, row 3 (8-pixel rows)
-      oled1.clear(0,128,3,4);
-      oled1.print(F("Ch"));
-      oled1.print(channel);
-      oled1.print(F(": "));
-      oled1.print(hallAverages[channel]); // current Hall value
+      oled1.clear(60,128,0,1);
+      oled1.setCursor(60,0); // Column 60, row 0 (8-pixel rows)
+      oled1.print(hallAverages[0]); // current Hall value
+      
+      oled1.clear(60,128,3,4);
+      oled1.setCursor(60,3); // Column 60, row 3 (8-pixel rows)
+      oled1.print(hallAverages[1]); // current Hall value
+
+      oled1.clear(60,128,6,7);
+      oled1.setCursor(60,6); // Column 60, row 6 (8-pixel rows)
+      oled1.print(hallAverages[2]); // current Hall value
 
 //      Serial.print(F("Ch"));
 //      Serial.print(channel);
 //      Serial.print(F(": "));
 ////      Serial.println(newReading);
 //      Serial.println(hallAverages[channel]);
-    val1 = hallAverages[channel];
-    sendToPC(&val1);
-    digitalWrite(GRNLED, !digitalRead(GRNLED));
+      val1 = hallAverages[0];
+      val2 = hallAverages[1];
+      val3 = hallAverages[2];
+      sendToPC(&val1, &val2, &val3);
+      
+      digitalWrite(GRNLED, !digitalRead(GRNLED));
     } // end of if(millis()-cycleMillis statement
   } // end of while(stallFlag) loop
 } // end of setup loop ************************************
