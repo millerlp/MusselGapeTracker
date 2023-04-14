@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Run this in a recent Python3 environment
 # to get the time.perf_counter() working
+# https://www.thepoorengineer.com/en/arduino-python-plot/
 # Tested working with arduino Uno at 9600 baud on the Mac under Python 3
 # Tested working with Teensy3.5 via USB on the Mac
 # With 32-bit 'duinos like Teensy, beware of the difference between a
@@ -11,7 +12,7 @@
 # 
  
 from threading import Thread
-import serial
+import serial  ## Note this is installed as python -m pip install pyserial
 import time
 import collections
 import matplotlib.pyplot as plt
@@ -79,9 +80,10 @@ class serialPlot:
  
  
 def main():
-    portName = 'COM8'     # for windows users
+    # portName = 'COM8'     # for windows users
     #portName = '/dev/tty.usbmodemFA131'  # Uno on the mac laptop
     # portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop
+    portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
     baudRate = 57600
     maxPlotLength = 500
     dataNumBytes = 4        # number of bytes of 1 data point
