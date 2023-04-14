@@ -52,6 +52,18 @@ ShiftReg shiftReg;
 Mux mux;
 unsigned int newReading = 0; // Reading from Hall effect sensor analog input
 unsigned int hallAverages[16]; // array to hold each second's sample averages
+float val1 = 2.0; // Reminder: on Teensy float and double are different sizes
+
+// On AVR, a float is 4 bytes and double is 4 bytes
+void sendToPC(float* data1)
+{
+  byte* byteData1 = (byte*)(data1);
+
+  byte buf[4] = {byteData1[0], byteData1[1], byteData1[2], byteData1[3]};
+  Serial.write(buf, 4);
+}
+
+
 
 void setup() {
     // Set button1 as an input
@@ -64,7 +76,7 @@ void setup() {
   digitalWrite(GRNLED, LOW);
 
   Serial.begin(57600);
-  Serial.println("Hello");
+//  Serial.println("Hello");
   
   SPI.begin(); // Need this to make the shift register run
   // Initialize the shift register object
@@ -111,11 +123,14 @@ void setup() {
       oled1.print(F(": "));
       oled1.print(hallAverages[channel]); // current Hall value
 //      oled1.print(newReading); // current Hall value
-      Serial.print(F("Ch"));
-      Serial.print(channel);
-      Serial.print(F(": "));
-//      Serial.println(newReading);
-      Serial.println(hallAverages[channel]);
+//      Serial.print(F("Ch"));
+//      Serial.print(channel);
+//      Serial.print(F(": "));
+////      Serial.println(newReading);
+//      Serial.println(hallAverages[channel]);
+    val1 = float(hallAverages[channel]);
+    sendToPC(&val1);
+
     }
 
   if (millis()-LEDMillis > LEDinterval) {
