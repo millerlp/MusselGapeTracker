@@ -2,14 +2,9 @@
 # Run this in a recent Python3 environment
 # to get the time.perf_counter() working
 # https://www.thepoorengineer.com/en/arduino-python-plot/
-# Tested working with arduino Uno at 9600 baud on the Mac under Python 3
-# Tested working with Teensy3.5 via USB on the Mac
-# With 32-bit 'duinos like Teensy, beware of the difference between a
-# 'float' (4-byte) and 'double' (8-byte) variable type. This script handles
-# 4-byte values currently, and if you send 8-byte values from the
-# Arduino software it will just print
-# the upper 4 bytes of the 8-byte value, which will probably be empty.
-# 
+# Tested working with MusselGapeTracker RevC at 57600 on Windows
+# using the arduino program Sensor_display_python.ino
+
  
 from threading import Thread
 import serial  ## Note this is installed as python -m pip install pyserial
@@ -56,7 +51,9 @@ class serialPlot:
         self.plotTimer = int((currentTimer - self.previousTimer) * 1000)     # the first reading will be erroneous
         self.previousTimer = currentTimer
         timeText.set_text('Plot Interval = ' + str(self.plotTimer) + 'ms')
-        value,  = struct.unpack('f', self.rawData)    # use 'h' for a 2 byte integer
+        # value,  = struct.unpack('f', self.rawData)    # use 'f' for a 4 byte float
+        # value,  = struct.unpack('h', self.rawData)    # use 'h' for a 2 byte integer
+        value,  = struct.unpack('H', self.rawData)    # use 'H' for a unsigned 2 byte integer
         self.data.append(value)    # we get the latest data point and append it to our array
         lines.set_data(range(self.plotMaxLength), self.data)
         lineValueText.set_text('[' + lineLabel + '] = ' + str(value))
@@ -80,13 +77,18 @@ class serialPlot:
  
  
 def main():
+<<<<<<< HEAD
     portName = 'COM8'     # for windows users
+=======
+    portName = 'COM7'     # for windows users
+>>>>>>> 393b61de71890733537ac0ad75a3d5ddfb0f49e4
     #portName = '/dev/tty.usbmodemFA131'  # Uno on the mac laptop
     # portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop
     #portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
     baudRate = 57600
     maxPlotLength = 500
-    dataNumBytes = 4        # number of bytes of 1 data point
+    # dataNumBytes = 4        # number of bytes of 1 data point, 4 bytes for a float
+    dataNumBytes = 2        # number of bytes of 1 data point, 2 bytes for a int or unsigned int
     s = serialPlot(portName, baudRate, maxPlotLength, dataNumBytes)   # initializes all required variables
     s.readSerialStart()                                               # starts background thread
  
@@ -95,7 +97,7 @@ def main():
     xmin = 0
     xmax = maxPlotLength
     ymin = 0
-    ymax = 512
+    ymax = 550
     fig = plt.figure()
     ax = plt.axes(xlim=(xmin, xmax), ylim=(float(ymin - (ymax - ymin) / 10), float(ymax + (ymax - ymin) / 10)))
     ax.set_title('Arduino Analog Read')
