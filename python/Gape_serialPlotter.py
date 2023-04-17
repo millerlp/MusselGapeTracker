@@ -77,11 +77,7 @@ class serialPlot:
  
  
 def main():
-<<<<<<< HEAD
     portName = 'COM8'     # for windows users
-=======
-    portName = 'COM7'     # for windows users
->>>>>>> 393b61de71890733537ac0ad75a3d5ddfb0f49e4
     #portName = '/dev/tty.usbmodemFA131'  # Uno on the mac laptop
     # portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop
     #portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
