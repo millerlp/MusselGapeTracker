@@ -80,10 +80,10 @@ class serialPlot:
  
  
 def main():
-    # portName = 'COM8'     # for windows users
+    portName = 'COM8'     # for windows users
     #portName = '/dev/tty.usbmodemFA131'  # Uno on the mac laptop
     # portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop
-    portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
+    #portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
     baudRate = 57600
     maxPlotLength = 500
     dataNumBytes = 4        # number of bytes of 1 data point
