@@ -52,15 +52,21 @@ ShiftReg shiftReg;
 Mux mux;
 unsigned int newReading = 0; // Reading from Hall effect sensor analog input
 unsigned int hallAverages[16]; // array to hold each second's sample averages
-float val1 = 0.0; // Reminder: on Teensy float and double are different sizes
+//float val1 = 0.0; // Reminder: on Teensy float and double are different sizes
+unsigned int val1 = 0;
 
 // On AVR, a float is 4 bytes and double is 4 bytes
-void sendToPC(float* data1)
-{
-  byte* byteData1 = (byte*)(data1);
+//void sendToPC(float* data1)
+//{
+//  byte* byteData1 = (byte*)(data1);
+//
+//  byte buf[4] = {byteData1[0], byteData1[1], byteData1[2], byteData1[3]};
+//  Serial.write(buf, 4);
+//}
 
-  byte buf[4] = {byteData1[0], byteData1[1], byteData1[2], byteData1[3]};
-  Serial.write(buf, 4);
+void sendToPC(unsigned int* data1) {
+  byte* byteData = (byte*)(data1);
+  Serial.write(byteData,2);
 }
 
 
@@ -97,24 +103,15 @@ void setup() {
   bool stallFlag = true; // Used in error handling below
   long cycleMillis = millis();
   long LEDMillis = millis();
-  uint8_t LEDinterval = 200;
   
-
   while (stallFlag){
     // The program will just cycle here endlessly
     // Take Hall reading and update oled very 100 ms
-    if (millis()-cycleMillis > 200){
+    if (millis()-cycleMillis > 50){
       cycleMillis = millis(); // update
 
       read16Hall(ANALOG_IN, hallAverages, shiftReg, mux, MUX_EN);
       newReading = hallAverages[channel];
-//      channel = 0;
-//      digitalWrite(MUX_EN, LOW); // enable multiplexer
-//      delayMicroseconds(2);      
-//      shiftReg.shiftChannelSet(channel);
-//      mux.muxChannelSet(channel); // Should be 0 by default
-//      newReading = readHall(ANALOG_IN);
-//      digitalWrite(MUX_EN, HIGH); // disable multiplexer
 
       oled1.setCursor(0,3); // Column 0, row 3 (8-pixel rows)
       oled1.clear(0,128,3,4);
@@ -122,75 +119,17 @@ void setup() {
       oled1.print(channel);
       oled1.print(F(": "));
       oled1.print(hallAverages[channel]); // current Hall value
-//      oled1.print(newReading); // current Hall value
+
 //      Serial.print(F("Ch"));
 //      Serial.print(channel);
 //      Serial.print(F(": "));
 ////      Serial.println(newReading);
 //      Serial.println(hallAverages[channel]);
-    val1 = float(hallAverages[channel]);
+    val1 = hallAverages[channel];
     sendToPC(&val1);
-
-    }
-
-  if (millis()-LEDMillis > LEDinterval) {
-    LEDMillis = millis(); // update value
-    if ( (newReading > 490 ) & (newReading < 520) ) {
-      LEDinterval = 200;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( (newReading <= 490) & (newReading >= 300)) {
-      LEDinterval = 150;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( (newReading < 300) & (newReading >= 200) ) {
-      LEDinterval = 100;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ((newReading < 200) & (newReading >= 100)) {
-      LEDinterval = 50;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( (newReading < 100) & (newReading >= 30)) {
-      LEDinterval = 30;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( newReading < 30)  {
-      // Too low, turn on red LED
-      LEDinterval = 20;
-      digitalWrite(GRNLED, LOW); // Turn off green
-      digitalWrite(REDLED, !digitalRead(REDLED));
-    } else if ( (newReading >= 520) & (newReading <= 700)) {
-      LEDinterval = 150;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( (newReading > 700) & (newReading <= 800) ) {
-      LEDinterval = 100;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ((newReading > 800) & (newReading <= 900)) {
-      LEDinterval = 50;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( (newReading > 900) & (newReading <= 1000) ){
-      LEDinterval = 30;
-      digitalWrite(REDLED, LOW); // Make sure error led is off
-      digitalWrite(GRNLED, !digitalRead(GRNLED));
-    } else if ( newReading > 1000)  {
-      // Too high, turn on red LED
-      LEDinterval = 20;
-      digitalWrite(GRNLED, LOW); // Turn off green
-      digitalWrite(REDLED, !digitalRead(REDLED));
-    } 
-    
-  }
-
-    
+    digitalWrite(GRNLED, !digitalRead(GRNLED));
+    } // end of if(millis()-cycleMillis statement
   } // end of while(stallFlag) loop
-
-
-  
-
 } // end of setup loop ************************************
 
 void loop() {
