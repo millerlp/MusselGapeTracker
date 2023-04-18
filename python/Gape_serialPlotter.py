@@ -77,12 +77,12 @@ class serialPlot:
  
  
 def main():
-    portName = 'COM8'     # for windows users
+    # portName = 'COM8'     # for windows users
     #portName = '/dev/tty.usbmodemFA131'  # Uno on the mac laptop
     # portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop
-    #portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
+    portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
     baudRate = 57600
-    maxPlotLength = 500
+    maxPlotLength = 200
     # dataNumBytes = 4        # number of bytes of 1 data point, 4 bytes for a float
     dataNumBytes = 2        # number of bytes of 1 data point, 2 bytes for a int or unsigned int
     s = serialPlot(portName, baudRate, maxPlotLength, dataNumBytes)   # initializes all required variables
@@ -93,7 +93,7 @@ def main():
     xmin = 0
     xmax = maxPlotLength
     ymin = 0
-    ymax = 550
+    ymax = 1000
     fig = plt.figure()
     ax = plt.axes(xlim=(xmin, xmax), ylim=(float(ymin - (ymax - ymin) / 10), float(ymax + (ymax - ymin) / 10)))
     ax.set_title('Arduino Analog Read')

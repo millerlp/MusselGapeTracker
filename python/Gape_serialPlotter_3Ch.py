@@ -84,8 +84,9 @@ class serialPlot:
 
 
 def main():
-    portName = 'COM7'
+    # portName = 'COM7'
     #portName = '/dev/tty.usbmodem3952301' # Teensy3.5 on the mac laptop 
+    portName = '/dev/tty.usbserial-A50285BI' # On a mac, try ls /dev/tty.usb* to find attached FTDI adapters
     baudRate = 57600
     maxPlotLength = 100     # number of points in x-axis of real time plot
     dataNumBytes = 2        # number of bytes of 1 data point
@@ -98,7 +99,7 @@ def main():
     xmin = 0
     xmax = maxPlotLength
     ymin = 0
-    ymax =  650
+    ymax = 1100
     plt.style.use('dark_background')  # Create plot with dark background theme
     fig = plt.figure(figsize=(10, 8))
     ax = plt.axes(xlim=(xmin, xmax), ylim=(float(ymin - (ymax - ymin) / 10), float(ymax + (ymax - ymin) / 10)))
