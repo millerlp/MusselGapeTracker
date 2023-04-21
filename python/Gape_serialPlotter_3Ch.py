@@ -111,7 +111,7 @@ def main():
     plt.title('Shell gape', fontdict = font)  # Define the plot title and set color using fontdict
     plt.rcParams['lines.linewidth'] = 4  # Make lines thicker
     lineLabel = ['Channel 0', 'Channel 1', 'Channel 2']
-    style = ['r-', 'c-', 'b-']  # linestyles for the different plots
+    style = ['g-', 'b-', 'y-']  # linestyles for the different plots
     timeText = ax.text(0.70, 0.95, '', transform=ax.transAxes)
     lines = []
     lineValueText = []
