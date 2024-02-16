@@ -266,7 +266,7 @@ void setup() {
   oled1.set2X();
   rtc.begin();  // Start the rtc object with default options
   newtime = rtc.now(); // read a time from the real time clock
-  newtime.toString(buf, 20); 
+  newtime.toString(buf); 
   // Now extract the time by making another character pointer that
   // is advanced 10 places into buf to skip over the date. 
   char *timebuf = buf + 10;
