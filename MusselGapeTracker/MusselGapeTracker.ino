@@ -172,7 +172,8 @@ void resetFlagsInit(void)
 //***********************************
 // Create real time clock object
 RTC_DS3231 rtc;
-char buf[20]; // declare a string buffer to hold the time result
+//char buf[20]; // declare a string buffer to hold the time result
+char buf[] = "YYYY-MM-DD hh:mm:ss"; // newer formating for toString() function buffer
 //**************** Time variables
 DateTime newtime;
 DateTime oldtime; // used to track time in main loop
